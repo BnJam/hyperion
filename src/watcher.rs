@@ -15,15 +15,18 @@ pub fn watch_directory(queue: &SqliteQueue, path: &Path) -> anyhow::Result<()> {
 
     loop {
         match rx.recv_timeout(Duration::from_secs(1)) {
-            Ok(event) => {
-                for path in event.paths {
-                    if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-                        if let Err(err) = ingest_change_request(queue, &path) {
-                            eprintln!("failed to ingest {path:?}: {err}");
+            Ok(event) => match event {
+                Ok(event) => {
+                    for path in event.paths {
+                        if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
+                            if let Err(err) = ingest_change_request(queue, &path) {
+                                eprintln!("failed to ingest {path:?}: {err}");
+                            }
                         }
                     }
                 }
-            }
+                Err(err) => eprintln!("watch error: {err}"),
+            },
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
             Err(err) => return Err(err.into()),
         }

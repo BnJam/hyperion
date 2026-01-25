@@ -23,6 +23,8 @@ This project defines a governance and execution system for multi-agent software 
 - **Developer Agents:** Implement targeted changes.
 - **Merge Queue/Buffer:** Applies changes via structured JSON patches.
 - **Queue Storage:** SQLite with WAL enabled for durability and concurrent writers.
+- **Agent Harness:** GitHub Copilot CLI (model `gpt-5-mini`) behind a trait for easy swapping.
+- **Schema Catalog:** Documented JSON schemas in `SCHEMAS.md`.
 
 ## Change Application Model
 Developer agents do not directly edit the repository. Instead they submit **JSON change requests** with:
@@ -36,6 +38,14 @@ The Merge Queue/Buffer:
 - Detects conflicts and queues for manual review
 - Runs tests and records results
 - Uses file system notifications (fsnotify/`notify`) to ingest new requests quickly
+- Leases dequeued work to allow retries on worker failure
+
+## CLI Highlights
+- Validate a change request: `cargo run -- validate-change path/to/change.json`
+- Orchestrate a task request: `cargo run -- orchestrate path/to/request.json --out assignments.json`
+- Apply a change request: `cargo run -- apply path/to/change.json --run-checks`
+- Run the worker loop: `cargo run -- worker --run-checks --max-attempts 5`
+- Inspect dead letters: `cargo run -- list-dead-letters`
 
 ## Example JSON Change Request (Sketch)
 ```json
@@ -59,7 +69,10 @@ The Merge Queue/Buffer:
 ## Next Steps
 - Review the detailed work plan in `WORKPLAN.md`.
 - Track milestones and dependencies in `ROADMAP.md`.
+- Review hardening guidance in `HARDENING.md`.
+- Review JSON schemas in `SCHEMAS.md`.
 - Run the Rust queue CLI (`cargo run -- init`) and load sample change requests.
+- Exercise the agent harness (`cargo run -- agent \"Summarize this task\"`).
 
 ## Contributing
 Contributions should align with the orchestration model and keep tasks scoped, isolated, and testable. For design changes, include a rationale and validation steps.

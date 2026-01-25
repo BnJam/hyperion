@@ -42,9 +42,10 @@ pub fn run_dashboard(queue: &SqliteQueue) -> anyhow::Result<()> {
                 .list(crate::models::QueueStatus::InProgress)
                 .map(|records| records.len())
                 .unwrap_or(0);
+            let dead_letters = queue.dead_letter_count().unwrap_or(0);
 
             let text = format!(
-                "Queue Status\n\nPending: {pending}\nIn Progress: {in_progress}\nApplied: {applied}\nFailed: {failed}\n\nPress q to exit.",
+                "Queue Status\n\nPending: {pending}\nIn Progress: {in_progress}\nApplied: {applied}\nFailed: {failed}\nDead Letters: {dead_letters}\n\nPress q to exit.",
             );
             let block = Paragraph::new(text).block(Block::default().title("Hyperion Dashboard").borders(Borders::ALL));
             frame.render_widget(block, frame.size());

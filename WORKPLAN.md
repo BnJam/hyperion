@@ -30,12 +30,14 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Define standard JSON task schema for Developer assignments.
 - Define JSON change request schema for Developer submissions.
 - Define Queue/Buffer workflow, SQLite WAL storage, and conflict detection strategy.
+- Establish agent harness trait with GitHub Copilot CLI implementation.
 
 **Deliverables**
 - Architecture diagram
 - API schema draft
 - Merge workflow spec
 - Storage design (SQLite WAL + log shipping)
+- Agent harness contract and CLI integration
 
 ### Phase 2: Orchestrator Task Decomposition
 - Implement task splitter for work items.
@@ -62,6 +64,8 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Detect and resolve conflicts, quarantine failures.
 - Support auto-rebase/retry strategy.
 - Maintain a WAL-backed audit trail for replay and rollback.
+- Add lease-based dequeue with retry counters and error capture.
+- Add worker loop to process queue entries with validation and checks.
 
 **Deliverables**
 - Merge Queue MVP
@@ -82,10 +86,12 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Logging and alerts for failed patches.
 - Continuous improvements from postmortems.
 - TUI dashboard (ratatui) for live queue status and health indicators.
+- Publish hardening and resiliency checklist.
 
 **Deliverables**
 - Metrics dashboards
 - Incident response checklist
+- Hardening & resiliency guide
 
 ## Risks & Mitigations
 - **Conflicting edits:** Use file-level ownership and apply order rules.

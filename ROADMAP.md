@@ -8,6 +8,7 @@
   - Change requests
   - Validation results
 - Prototype Merge Queue/Buffer with basic validation.
+- Implement agent harness trait with GitHub Copilot CLI and model `gpt-5-mini`.
 
 ## Short Term (1–3 months)
 - Implement Engineer agent intake workflow.
@@ -15,6 +16,8 @@
 - Integrate Developer agents with scoped context windows.
 - Implement conflict detection and quarantine logic in Merge Queue.
 - Add a basic audit log and reporting.
+- Add lease-based dequeue and retry counters in the queue.
+- Add a worker loop for continuous processing and retries.
 
 ## Mid Term (3–6 months)
 - Add automated rebase/retry flows in Merge Queue.
@@ -22,6 +25,7 @@
 - Expand validation to include static analysis and security checks.
 - Add dashboards for throughput, conflict rate, and success rate.
 - Ship a ratatui-based TUI dashboard for live visibility.
+- Publish hardening and resiliency checklist.
 
 ## Long Term (6–12 months)
 - Support multi-repo orchestration.
