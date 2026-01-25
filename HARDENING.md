@@ -10,6 +10,7 @@
 - **Lease expiry** allows reprocessing when a worker dies.
 - **Attempt counters** enable retry policies and escalation.
 - **Error capture** stores last failure for diagnosis.
+- **Retry caps** stop flapping requests from looping indefinitely.
 
 ## Operational Safety
 - **Idempotency:** change requests must be safe to apply multiple times.

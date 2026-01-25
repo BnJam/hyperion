@@ -3,11 +3,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
 use rusqlite::{params, Connection, OptionalExtension};
+use std::sync::Mutex;
 
 use crate::models::{ChangeRequest, QueueRecord, QueueStatus};
 
 pub struct SqliteQueue {
-    conn: Connection,
+    conn: Mutex<Connection>,
 }
 
 impl SqliteQueue {
@@ -44,22 +45,32 @@ impl SqliteQueue {
             &conn,
             "updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))",
         )?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn enqueue(&self, request: &ChangeRequest) -> anyhow::Result<i64> {
         let payload = serde_json::to_string(request).context("serialize change request")?;
-        self.conn.execute(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
             "INSERT INTO change_queue (status, payload, updated_at) VALUES (?1, ?2, ?3)",
             params![QueueStatus::Pending.as_str(), payload, now_epoch()?],
         )?;
-        Ok(self.conn.last_insert_rowid())
+        Ok(conn.last_insert_rowid())
     }
 
     pub fn dequeue(&self, lease_duration: Duration) -> anyhow::Result<Option<QueueRecord>> {
         let now = now_epoch()?;
         let lease_until = now + lease_duration.as_secs() as i64;
-        let tx = self.conn.transaction()?;
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let tx = conn.transaction()?;
         let row = tx
             .query_row(
                 "SELECT id, status, payload, attempts, last_error, leased_until
@@ -113,15 +124,35 @@ impl SqliteQueue {
     }
 
     pub fn mark_failed(&self, id: i64, error: Option<String>) -> anyhow::Result<()> {
-        self.conn.execute(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
             "UPDATE change_queue SET status = ?1, last_error = ?2, leased_until = NULL, updated_at = ?3 WHERE id = ?4",
             params![QueueStatus::Failed.as_str(), error, now_epoch()?, id],
         )?;
         Ok(())
     }
 
+    pub fn mark_retry(&self, id: i64, error: Option<String>) -> anyhow::Result<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
+            "UPDATE change_queue SET status = ?1, last_error = ?2, leased_until = NULL, updated_at = ?3 WHERE id = ?4",
+            params![QueueStatus::Pending.as_str(), error, now_epoch()?, id],
+        )?;
+        Ok(())
+    }
+
     pub fn mark_applied(&self, id: i64) -> anyhow::Result<()> {
-        self.conn.execute(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
             "UPDATE change_queue SET status = ?1, leased_until = NULL, updated_at = ?2 WHERE id = ?3",
             params![QueueStatus::Applied.as_str(), now_epoch()?, id],
         )?;
@@ -129,7 +160,11 @@ impl SqliteQueue {
     }
 
     pub fn list(&self, status: QueueStatus) -> anyhow::Result<Vec<QueueRecord>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
             "SELECT id, status, payload, attempts, last_error, leased_until
              FROM change_queue
              WHERE status = ?1

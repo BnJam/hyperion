@@ -13,6 +13,7 @@ mod validator;
 mod watcher;
 mod worker;
 
+use crate::agent::AgentHarness;
 use models::QueueStatus;
 use queue::SqliteQueue;
 
@@ -76,6 +77,8 @@ enum Commands {
         poll_interval_ms: u64,
         #[arg(long)]
         run_checks: bool,
+        #[arg(long, default_value = "5")]
+        max_attempts: i64,
     },
 }
 
@@ -181,6 +184,7 @@ fn main() -> anyhow::Result<()> {
             lease_seconds,
             poll_interval_ms,
             run_checks,
+            max_attempts,
         } => {
             worker::run_worker(
                 &queue,
@@ -188,6 +192,7 @@ fn main() -> anyhow::Result<()> {
                     lease_seconds,
                     poll_interval_ms,
                     run_checks,
+                    max_attempts,
                 },
             )?;
         }

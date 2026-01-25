@@ -55,8 +55,26 @@ mod tests {
         assert!(!result.valid);
         assert!(result.errors.iter().any(|e| e.contains("task_id")));
         assert!(result.errors.iter().any(|e| e.contains("agent")));
-        assert!(result.errors.iter().any(|e| e.contains("changes must")));
+        assert!(result.errors.iter().any(|e| e.contains("checks must")));
         assert!(result.errors.iter().any(|e| e.contains("changes[0].path")));
         assert!(result.errors.iter().any(|e| e.contains("changes[0].patch")));
+    }
+
+    #[test]
+    fn accepts_valid_request() {
+        let request = ChangeRequest {
+            task_id: "TASK-1".to_string(),
+            agent: "dev-1".to_string(),
+            changes: vec![ChangeOperation {
+                path: "src/lib.rs".to_string(),
+                operation: OperationKind::Update,
+                patch: "@@ -1,1 +1,1 @@\n-old\n+new".to_string(),
+            }],
+            checks: vec!["cargo test".to_string()],
+        };
+
+        let result = validate_change_request(&request);
+        assert!(result.valid);
+        assert!(result.errors.is_empty());
     }
 }

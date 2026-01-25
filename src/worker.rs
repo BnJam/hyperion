@@ -15,6 +15,7 @@ pub struct WorkerConfig {
     pub lease_seconds: u64,
     pub poll_interval_ms: u64,
     pub run_checks: bool,
+    pub max_attempts: i64,
 }
 
 pub fn run_worker(queue: &SqliteQueue, config: WorkerConfig) -> anyhow::Result<()> {
@@ -34,6 +35,23 @@ pub fn run_worker(queue: &SqliteQueue, config: WorkerConfig) -> anyhow::Result<(
     while running.load(Ordering::SeqCst) {
         let record = queue.dequeue(Duration::from_secs(config.lease_seconds))?;
         if let Some(record) = record {
+            if record.attempts > config.max_attempts {
+                warn!(
+                    task_id = %record.payload.task_id,
+                    attempts = record.attempts,
+                    max_attempts = config.max_attempts,
+                    "max attempts reached"
+                );
+                queue.mark_failed(
+                    record.id,
+                    Some(format!(
+                        "max attempts reached ({}/{})",
+                        record.attempts, config.max_attempts
+                    )),
+                )?;
+                continue;
+            }
+
             let validation = validator::validate_change_request(&record.payload);
             if !validation.valid {
                 warn!(
@@ -50,14 +68,22 @@ pub fn run_worker(queue: &SqliteQueue, config: WorkerConfig) -> anyhow::Result<(
 
             if let Err(err) = apply::apply_change_request(&record.payload) {
                 warn!(task_id = %record.payload.task_id, error = %err, "apply failed");
-                queue.mark_failed(record.id, Some(err.to_string()))?;
+                if record.attempts >= config.max_attempts {
+                    queue.mark_failed(record.id, Some(err.to_string()))?;
+                } else {
+                    queue.mark_retry(record.id, Some(err.to_string()))?;
+                }
                 continue;
             }
 
             if config.run_checks {
                 if let Err(err) = runner::run_checks(&record.payload.checks) {
                     warn!(task_id = %record.payload.task_id, error = %err, "checks failed");
-                    queue.mark_failed(record.id, Some(err.to_string()))?;
+                    if record.attempts >= config.max_attempts {
+                        queue.mark_failed(record.id, Some(err.to_string()))?;
+                    } else {
+                        queue.mark_retry(record.id, Some(err.to_string()))?;
+                    }
                     continue;
                 }
             }
