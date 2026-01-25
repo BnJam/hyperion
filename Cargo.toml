@@ -1,0 +1,22 @@
+[package]
+name = "hyperion"
+version = "1.0.0"
+edition = "2021"
+
+[features]
+default = []
+tui = ["ratatui", "crossterm"]
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+notify = "6.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+ratatui = { version = "0.26", optional = true }
+crossterm = { version = "0.27", optional = true }
