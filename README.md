@@ -45,6 +45,7 @@ The Merge Queue/Buffer:
 - Orchestrate a task request: `cargo run -- orchestrate path/to/request.json --out assignments.json`
 - Apply a change request: `cargo run -- apply path/to/change.json --run-checks`
 - Run the worker loop: `cargo run -- worker --run-checks --max-attempts 5`
+- Inspect dead letters: `cargo run -- list-dead-letters`
 
 ## Example JSON Change Request (Sketch)
 ```json

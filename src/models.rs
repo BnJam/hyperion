@@ -62,6 +62,17 @@ pub struct QueueRecord {
     pub leased_until: Option<i64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeadLetterRecord {
+    pub id: i64,
+    pub queue_id: i64,
+    pub task_id: String,
+    pub agent: String,
+    pub payload: ChangeRequest,
+    pub error: Option<String>,
+    pub failed_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum QueueStatus {

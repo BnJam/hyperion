@@ -18,6 +18,7 @@
 - **Quarantine:** failed requests remain visible and reviewable.
 - **Validation gates:** reject invalid change requests before apply.
 - **Graceful shutdown:** worker responds to SIGINT and avoids partial state writes.
+- **Dead letter handling:** failed requests are archived for triage.
 
 ## Observability
 - **Structured logs** for enqueue/dequeue/apply outcomes.

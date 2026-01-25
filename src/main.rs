@@ -40,6 +40,7 @@ enum Commands {
     List {
         status: Option<QueueStatus>,
     },
+    ListDeadLetters,
     MarkApplied {
         id: i64,
     },
@@ -118,6 +119,20 @@ fn main() -> anyhow::Result<()> {
                     record.payload.task_id,
                     record.attempts,
                     record.leased_until
+                );
+            }
+        }
+        Commands::ListDeadLetters => {
+            let records = queue.list_dead_letters()?;
+            for record in records {
+                println!(
+                    "{} queue_id={} task_id={} agent={} failed_at={} error={:?}",
+                    record.id,
+                    record.queue_id,
+                    record.task_id,
+                    record.agent,
+                    record.failed_at,
+                    record.error
                 );
             }
         }
