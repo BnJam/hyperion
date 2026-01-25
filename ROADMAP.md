@@ -1,5 +1,14 @@
 # Roadmap: Multi-Agent Orchestration System
 
+## Approvals
+APPROVED: YES
+
+## Validation Policy
+Proposed validation commands (to be run per task unless scoped otherwise):
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
 ## Near Term (0–1 months)
 - Finalize requirements and glossary.
 - Draft task decomposition rules for the Orchestrator.

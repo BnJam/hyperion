@@ -1,5 +1,14 @@
 # Work Plan: Multi-Agent Orchestration System
 
+## Approvals
+APPROVED: YES
+
+## Validation Policy
+Proposed validation commands (to be run per task unless scoped otherwise):
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
 ## Purpose
 Establish a clear, staged plan to design and implement a multi-agent orchestration system that:
 - Accepts human task requests.
