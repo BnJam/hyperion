@@ -65,6 +65,7 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Support auto-rebase/retry strategy.
 - Maintain a WAL-backed audit trail for replay and rollback.
 - Add lease-based dequeue with retry counters and error capture.
+- Add worker loop to process queue entries with validation and checks.
 
 **Deliverables**
 - Merge Queue MVP

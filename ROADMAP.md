@@ -17,6 +17,7 @@
 - Implement conflict detection and quarantine logic in Merge Queue.
 - Add a basic audit log and reporting.
 - Add lease-based dequeue and retry counters in the queue.
+- Add a worker loop for continuous processing and retries.
 
 ## Mid Term (3–6 months)
 - Add automated rebase/retry flows in Merge Queue.

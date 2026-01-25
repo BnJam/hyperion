@@ -11,6 +11,7 @@ mod runner;
 mod tui;
 mod validator;
 mod watcher;
+mod worker;
 
 use models::QueueStatus;
 use queue::SqliteQueue;
@@ -65,6 +66,14 @@ enum Commands {
     },
     Apply {
         file: PathBuf,
+        #[arg(long)]
+        run_checks: bool,
+    },
+    Worker {
+        #[arg(long, default_value = "300")]
+        lease_seconds: u64,
+        #[arg(long, default_value = "500")]
+        poll_interval_ms: u64,
         #[arg(long)]
         run_checks: bool,
     },
@@ -167,6 +176,20 @@ fn main() -> anyhow::Result<()> {
                 runner::run_checks(&request.checks)?;
             }
             println!("applied");
+        }
+        Commands::Worker {
+            lease_seconds,
+            poll_interval_ms,
+            run_checks,
+        } => {
+            worker::run_worker(
+                &queue,
+                worker::WorkerConfig {
+                    lease_seconds,
+                    poll_interval_ms,
+                    run_checks,
+                },
+            )?;
         }
     }
 
