@@ -21,3 +21,7 @@
 
 - Files read: `src/tui.rs`, `src/request.rs`, `src/apply.rs`, `src/main.rs`
 - Justification: Needed to rework the dashboard layout, fix request ingestion, and simplify apply logic.
+
+## Plan Updates
+
+- Removed outdated task checklist entries and documented the current multi-pane TUI + deterministic request pipeline workstreams in `WORKPLAN.md`.

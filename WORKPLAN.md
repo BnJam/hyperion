@@ -34,9 +34,6 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - [x] cargo test --workspace
 - [x] cargo build
 - [x] cargo run
-- [ ] Enable TUI by default in the build (default features include `tui`) and document the default.
-- [ ] Fix `hyperion agent` to use the `copilot` CLI reliably and avoid exit status 1 on normal prompts.
-- [ ] Add a lightweight smoke check for `hyperion agent` execution flow (mocked or guarded) to prevent regressions.
 
 ### Phase 0: Discovery & Requirements
 - Collect user stories for request intake, delegation, and merge workflow.
@@ -90,6 +87,7 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Maintain a WAL-backed audit trail for replay and rollback.
 - Add lease-based dequeue with retry counters and error capture.
 - Add worker loop to process queue entries with validation and checks.
+- Provide a deterministic/stubbed change-application path so the queue can be exercised without mutating source files during this integration phase.
 
 **Deliverables**
 - Merge Queue MVP

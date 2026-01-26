@@ -1,17 +1,8 @@
- M .gitignore
- M Cargo.toml
- M README.md
- M RECEIPT.md
  M WORKPLAN.md
  M execution/changed_files.json
  M execution/discovery_log.md
  M execution/git_status.txt
- M execution/result.json
  M execution/task_status_summary.json
  M execution/tasks.json
- M src/agent.rs
- M src/main.rs
- M src/tui.rs
- M src/worker.rs
-?? copilot-help.txt
-?? src/request.rs
+?? hyperion.db-shm
+?? hyperion.db-wal

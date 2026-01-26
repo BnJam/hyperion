@@ -4,9 +4,6 @@
     {"id": "T002", "description": "cargo clippy --workspace --all-targets --all-features", "status": "done"},
     {"id": "T003", "description": "cargo test --workspace", "status": "done"},
     {"id": "T004", "description": "cargo build", "status": "done"},
-    {"id": "T005", "description": "cargo run", "status": "done"},
-    {"id": "T006", "description": "Enable TUI by default in the build (default features include `tui`) and document the default.", "status": "pending"},
-    {"id": "T007", "description": "Fix `hyperion agent` to use the `copilot` CLI reliably and avoid exit status 1 on normal prompts.", "status": "pending"},
-    {"id": "T008", "description": "Add a lightweight smoke check for `hyperion agent` execution flow (mocked or guarded) to prevent regressions.", "status": "pending"}
+    {"id": "T005", "description": "cargo run", "status": "done"}
   ]
 }
