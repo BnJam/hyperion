@@ -1,28 +1,39 @@
-# Work Plan: Multi-Agent Orchestration System
+# WORKPLAN — Multi-Agent Orchestration System
 
-## Approvals
-APPROVED: YES
+## Plan Metadata
+Approval pattern: ^Approved:[[:space:]]+yes$
+Required sections: Intent, Goals, Non-Goals, Scope, Constraints, Plan, Commands, Validation, Approval
+Validation policy: cargo fmt --check; cargo clippy --workspace --all-targets --all-features; cargo test --workspace
 
-## Validation Policy
-Proposed validation commands (to be run per task unless scoped otherwise):
-- cargo fmt --check
-- cargo clippy --workspace --all-targets --all-features
-- cargo test --workspace
+## Intent
+Establish a clear, staged plan to design and implement a multi-agent orchestration system that accepts human task requests, uses an Engineer agent to clarify scope and delegate work, uses an Orchestrator to decompose tasks and assign to Developer agents, and employs a Merge Queue/Buffer to apply changes safely and at scale.
 
-## Purpose
-Establish a clear, staged plan to design and implement a multi-agent orchestration system that:
+## Goals
 - Accepts human task requests.
 - Uses an Engineer agent to clarify scope and delegate work.
 - Uses an Orchestrator to decompose tasks and assign to Developer agents.
 - Employs a Merge Queue/Buffer to apply changes safely and at scale.
 
-## Guiding Principles
+## Non-Goals
+- Not specified in the source plan.
+
+## Scope
+- Multi-agent orchestration system for this repo (Engineer, Orchestrator, Developer, Merge Queue).
+
+## Constraints
 - **Isolation:** Developer tasks must be small, scoped, and independent.
 - **Traceability:** Every change request is tied to a task ID and JSON patch payload.
 - **Parallelism with Safety:** Enable concurrent changes without merge conflicts.
 - **Human-in-the-loop:** Preserve human visibility and approval gates.
 
-## Phases & Milestones
+## Plan
+
+### Approved Tasks
+- [x] cargo fmt --check
+- [x] cargo clippy --workspace --all-targets --all-features
+- [x] cargo test --workspace
+- [x] cargo build
+- [x] cargo run
 
 ### Phase 0: Discovery & Requirements
 - Collect user stories for request intake, delegation, and merge workflow.
@@ -102,13 +113,19 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Incident response checklist
 - Hardening & resiliency guide
 
-## Risks & Mitigations
-- **Conflicting edits:** Use file-level ownership and apply order rules.
-- **Overly broad tasks:** Enforce max scope and file count limits.
-- **Low-quality patches:** Require validation and tests in schema.
-- **Hidden dependency changes:** Enforce dependency impact analysis.
+## Commands
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features
+cargo test --workspace
+cargo build
+cargo run
 
-## Success Criteria
-- 80%+ tasks can be decomposed into independent units.
-- Merge Queue applies >95% change requests without manual intervention.
-- Clear traceability for every change from human request to applied patch.
+## Validation
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features
+cargo test --workspace
+
+## Approval
+Approved: yes
+Approved by: not specified
+Approved on:

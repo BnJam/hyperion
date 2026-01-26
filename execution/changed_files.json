@@ -1,0 +1,11 @@
+{
+  "clean": false,
+  "dirty": true,
+  "files": [
+    "execution/",
+    "RECEIPT.md",
+    "ROADMAP.md",
+    "TASKS.md",
+    "WORKPLAN.md"
+  ]
+}

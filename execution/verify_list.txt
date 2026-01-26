@@ -1,0 +1,12 @@
+/Users/bsmith/bnjam/hyperion/execution/plan_discovery_report.json
+/Users/bsmith/bnjam/hyperion/execution/plan_validation_report.json
+/Users/bsmith/bnjam/hyperion/execution/tasks.json
+/Users/bsmith/bnjam/hyperion/execution/task_status_summary.json
+/Users/bsmith/bnjam/hyperion/execution/git_status.txt
+/Users/bsmith/bnjam/hyperion/execution/changed_files.json
+/Users/bsmith/bnjam/hyperion/execution/approved_commands.txt
+/Users/bsmith/bnjam/hyperion/execution/command_logs/command_1.log
+/Users/bsmith/bnjam/hyperion/execution/command_logs/command_2.log
+/Users/bsmith/bnjam/hyperion/execution/command_logs/command_3.log
+/Users/bsmith/bnjam/hyperion/execution/command_logs/command_4.log
+/Users/bsmith/bnjam/hyperion/execution/command_logs/command_5.log

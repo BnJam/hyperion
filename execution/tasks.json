@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    {"id": "T001", "description": "cargo fmt --check", "status": "done"},
+    {"id": "T002", "description": "cargo clippy --workspace --all-targets --all-features", "status": "done"},
+    {"id": "T003", "description": "cargo test --workspace", "status": "done"},
+    {"id": "T004", "description": "cargo build", "status": "done"},
+    {"id": "T005", "description": "cargo run", "status": "done"}
+  ]
+}

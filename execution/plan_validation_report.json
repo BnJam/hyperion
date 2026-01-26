@@ -1,0 +1,19 @@
+{
+  "plan": "/Users/bsmith/bnjam/hyperion/WORKPLAN.md",
+  "required_sections": [
+    "Intent",
+    " Goals",
+    " Non-Goals",
+    " Scope",
+    " Constraints",
+    " Plan",
+    " Commands",
+    " Validation",
+    " Approval"
+  ],
+  "missing_sections": [
+  ],
+  "approval_pattern": "^Approved:[[:space:]]+yes$",
+  "approval_found": true,
+  "status": "pass"
+}

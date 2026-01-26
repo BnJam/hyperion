@@ -1,0 +1,27 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running `target/debug/hyperion`
+Multi-agent orchestration queue
+
+Usage: hyperion [OPTIONS] <COMMAND>
+
+Commands:
+  init               
+  enqueue            
+  dequeue            
+  list               
+  list-dead-letters  
+  mark-applied       
+  mark-failed        
+  watch              
+  tui                
+  agent              
+  validate-change    
+  orchestrate        
+  apply              
+  worker             
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+      --db <DB>  [default: hyperion.db]
+  -h, --help     Print help
+  -V, --version  Print version
