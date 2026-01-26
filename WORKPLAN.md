@@ -34,6 +34,9 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - [x] cargo test --workspace
 - [x] cargo build
 - [x] cargo run
+- [ ] Enable TUI by default in the build (default features include `tui`) and document the default.
+- [ ] Fix `hyperion agent` to use the `copilot` CLI reliably and avoid exit status 1 on normal prompts.
+- [ ] Add a lightweight smoke check for `hyperion agent` execution flow (mocked or guarded) to prevent regressions.
 
 ### Phase 0: Discovery & Requirements
 - Collect user stories for request intake, delegation, and merge workflow.
@@ -73,6 +76,7 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Integrate Developer agents with scoped context.
 - Validate output against JSON change request schema.
 - Enforce lint/test execution instructions per task.
+- Provide a deterministic `hyperion request <file>` path that ingests `TaskRequest` JSON, turns it into queued change requests, and keeps the TUI updated without hanging.
 
 **Deliverables**
 - Developer agent spec
@@ -106,6 +110,7 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Logging and alerts for failed patches.
 - Continuous improvements from postmortems.
 - TUI dashboard (ratatui) for live queue status and health indicators.
+- Expand the dashboard to multi-pane views including runtime insights and actionable guidance so operators can track workers, agents, and queue entries at a glance.
 - Publish hardening and resiliency checklist.
 
 **Deliverables**

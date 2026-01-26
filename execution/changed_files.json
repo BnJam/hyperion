@@ -2,10 +2,22 @@
   "clean": false,
   "dirty": true,
   "files": [
-    "execution/",
+    ".gitignore",
+    "Cargo.toml",
+    "copilot-help.txt",
+    "execution/changed_files.json",
+    "execution/discovery_log.md",
+    "execution/git_status.txt",
+    "execution/result.json",
+    "execution/task_status_summary.json",
+    "execution/tasks.json",
+    "README.md",
     "RECEIPT.md",
-    "ROADMAP.md",
-    "TASKS.md",
+    "src/agent.rs",
+    "src/main.rs",
+    "src/request.rs",
+    "src/tui.rs",
+    "src/worker.rs",
     "WORKPLAN.md"
   ]
 }

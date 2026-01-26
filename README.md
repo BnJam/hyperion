@@ -23,7 +23,7 @@ This project defines a governance and execution system for multi-agent software 
 - **Developer Agents:** Implement targeted changes.
 - **Merge Queue/Buffer:** Applies changes via structured JSON patches.
 - **Queue Storage:** SQLite with WAL enabled for durability and concurrent writers.
-- **Agent Harness:** GitHub Copilot CLI (model `gpt-5-mini`) behind a trait for easy swapping.
+- **Agent Harness:** Copilot CLI (model `gpt-5-mini`) behind a trait for easy swapping.
 - **Schema Catalog:** Documented JSON schemas in `SCHEMAS.md`.
 
 ## Change Application Model

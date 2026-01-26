@@ -24,7 +24,14 @@ pub fn run_worker(queue: &SqliteQueue, config: WorkerConfig) -> anyhow::Result<(
     ctrlc::set_handler(move || {
         signal.store(false, Ordering::SeqCst);
     })?;
+    run_worker_with_signal(queue, config, running)
+}
 
+pub fn run_worker_with_signal(
+    queue: &SqliteQueue,
+    config: WorkerConfig,
+    running: Arc<AtomicBool>,
+) -> anyhow::Result<()> {
     info!(
         lease_seconds = config.lease_seconds,
         poll_interval_ms = config.poll_interval_ms,
