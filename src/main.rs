@@ -1,7 +1,9 @@
+use std::collections::VecDeque;
+use std::env;
 use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 use std::thread;
 
@@ -9,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 mod agent;
 mod apply;
+mod fs_watch;
 mod models;
 mod orchestrator;
 mod queue;
@@ -20,6 +23,7 @@ mod watcher;
 mod worker;
 
 use crate::agent::AgentHarness;
+use crate::request::DEFAULT_MODEL;
 use models::QueueStatus;
 use queue::SqliteQueue;
 
@@ -102,6 +106,15 @@ enum Commands {
         #[arg(long, default_value = "5")]
         max_attempts: i64,
     },
+    SessionInit {
+        #[arg(long)]
+        resume_id: String,
+        #[arg(long)]
+        model: Option<String>,
+        #[arg(long, default_value_t = true)]
+        allow_all_tools: bool,
+    },
+    SessionList,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -193,6 +206,37 @@ fn main() -> anyhow::Result<()> {
         }
         Some(Commands::Watch { directory }) => {
             watcher::watch_directory(queue.as_ref(), &directory)?;
+            Ok(())
+        }
+        Some(Commands::SessionInit {
+            resume_id,
+            model,
+            allow_all_tools,
+        }) => {
+            let model = model.unwrap_or_else(|| DEFAULT_MODEL.to_string());
+            let session = queue.upsert_agent_session(&resume_id, &model, allow_all_tools)?;
+            println!(
+                "Recorded agent session {} (resume={}, model={}, allow_all_tools={})",
+                session.id, session.resume_id, session.model, session.allow_all_tools
+            );
+            Ok(())
+        }
+        Some(Commands::SessionList) => {
+            let sessions = queue.list_agent_sessions()?;
+            if sessions.is_empty() {
+                println!("no agent sessions recorded");
+            } else {
+                for session in sessions {
+                    println!(
+                        "{} resume={} model={} allow_all_tools={} last_used={}",
+                        session.id,
+                        session.resume_id,
+                        session.model,
+                        session.allow_all_tools,
+                        session.last_used
+                    );
+                }
+            }
             Ok(())
         }
         Some(Commands::Tui) => {
@@ -310,10 +354,20 @@ fn run_integrated(
         }));
     }
 
+    let modified_files = Arc::new(Mutex::new(VecDeque::new()));
+    let fs_root = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let fs_handle = fs_watch::spawn_fs_monitor(
+        fs_root,
+        queue.clone(),
+        modified_files.clone(),
+        running.clone(),
+    )?;
+
     let tui_config = tui::TuiConfig {
         db_path: db_path.display().to_string(),
         worker_count,
         agent_count,
+        modified_files: modified_files.clone(),
     };
     let tui_result = tui::run_dashboard_with_config(queue.as_ref(), tui_config);
     running.store(false, Ordering::SeqCst);
@@ -322,6 +376,10 @@ fn run_integrated(
         if let Err(err) = handle.join() {
             eprintln!("worker thread failed: {err:?}");
         }
+    }
+
+    if let Err(err) = fs_handle.join() {
+        eprintln!("fs monitor thread failed: {err:?}");
     }
 
     tui_result

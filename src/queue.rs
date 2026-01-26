@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 use std::sync::Mutex;
 
@@ -20,6 +20,16 @@ pub struct ChangeQueueLog {
     pub task_id: String,
     pub level: String,
     pub message: String,
+    pub details: Option<Value>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileModification {
+    pub id: i64,
+    pub path: String,
+    pub event: String,
+    pub source: String,
     pub details: Option<Value>,
     pub created_at: i64,
 }
@@ -75,12 +85,36 @@ impl SqliteQueue {
                 task_id TEXT NOT NULL,
                 level TEXT NOT NULL,
                 message TEXT NOT NULL,
-                details TEXT,
+                details JSON,
                 created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
             );
             CREATE INDEX IF NOT EXISTS idx_change_queue_logs_queue_id ON change_queue_logs(queue_id);",
         )
         .context("create change queue logs table")?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS agent_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                resume_id TEXT NOT NULL UNIQUE,
+                model TEXT NOT NULL,
+                allow_all_tools INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                last_used INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_sessions_last_used ON agent_sessions(last_used);",
+        )
+        .context("create agent sessions table")?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS file_modifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                event TEXT NOT NULL,
+                source TEXT NOT NULL,
+                details JSON,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_file_modifications_created_at ON file_modifications(created_at);",
+        )
+        .context("create file modifications table")?;
         Self::try_add_column(&conn, "attempts INTEGER NOT NULL DEFAULT 0")?;
         Self::try_add_column(&conn, "last_error TEXT")?;
         Self::try_add_column(&conn, "leased_until INTEGER")?;
@@ -114,9 +148,7 @@ impl SqliteQueue {
         message: &str,
         details: Option<&serde_json::Value>,
     ) -> anyhow::Result<()> {
-        let details_json = details
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "null".to_string());
+        let details_json = details.map(|value| value.to_string());
         let conn = self
             .conn
             .lock()
@@ -132,6 +164,26 @@ impl SqliteQueue {
                 details_json,
                 now_epoch()?
             ],
+        )?;
+        Ok(())
+    }
+
+    pub fn record_file_event(
+        &self,
+        path: &str,
+        event: &str,
+        source: &str,
+        details: Option<&serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        let details_json = details.map(|value| value.to_string());
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
+            "INSERT INTO file_modifications (path, event, source, details, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![path, event, source, details_json, now_epoch()?],
         )?;
         Ok(())
     }
@@ -321,6 +373,133 @@ impl SqliteQueue {
             });
         }
         Ok(logs)
+    }
+
+    pub fn recent_file_events(&self, limit: usize) -> anyhow::Result<Vec<FileModification>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, path, event, source, details, created_at
+             FROM file_modifications
+             ORDER BY created_at DESC
+             LIMIT ?1",
+        )?;
+        let mut rows = stmt.query(params![limit as i64])?;
+        let mut events = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let path: String = row.get(1)?;
+            let event: String = row.get(2)?;
+            let source: String = row.get(3)?;
+            let details_str: Option<String> = row.get(4)?;
+            let created_at: i64 = row.get(5)?;
+            let details = details_str.and_then(|text| serde_json::from_str::<Value>(&text).ok());
+            events.push(FileModification {
+                id,
+                path,
+                event,
+                source,
+                details,
+                created_at,
+            });
+        }
+        Ok(events)
+    }
+
+    pub fn upsert_agent_session(
+        &self,
+        resume_id: &str,
+        model: &str,
+        allow_all_tools: bool,
+    ) -> anyhow::Result<AgentSession> {
+        let now = now_epoch()?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
+            "INSERT INTO agent_sessions (resume_id, model, allow_all_tools, created_at, last_used)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(resume_id) DO UPDATE SET
+               model = excluded.model,
+               allow_all_tools = excluded.allow_all_tools,
+               last_used = excluded.last_used",
+            params![
+                resume_id,
+                model,
+                if allow_all_tools { 1 } else { 0 },
+                now,
+                now
+            ],
+        )?;
+        let mut stmt = conn.prepare(
+            "SELECT id, resume_id, model, allow_all_tools, created_at, last_used
+             FROM agent_sessions
+             WHERE resume_id = ?1",
+        )?;
+        let session =
+            stmt.query_row(params![resume_id], |row| Self::agent_session_from_row(row))?;
+        Ok(session)
+    }
+
+    pub fn latest_agent_session(&self) -> anyhow::Result<Option<AgentSession>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, resume_id, model, allow_all_tools, created_at, last_used
+             FROM agent_sessions
+             ORDER BY last_used DESC
+             LIMIT 1",
+        )?;
+        let row = stmt
+            .query_row([], |row| Self::agent_session_from_row(row))
+            .optional()?;
+        Ok(row)
+    }
+
+    pub fn list_agent_sessions(&self) -> anyhow::Result<Vec<AgentSession>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, resume_id, model, allow_all_tools, created_at, last_used
+             FROM agent_sessions
+             ORDER BY created_at DESC",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut sessions = Vec::new();
+        while let Some(row) = rows.next()? {
+            sessions.push(Self::agent_session_from_row(row)?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn touch_agent_session(&self, id: i64) -> anyhow::Result<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
+            "UPDATE agent_sessions SET last_used = ?1 WHERE id = ?2",
+            params![now_epoch()?, id],
+        )?;
+        Ok(())
+    }
+
+    fn agent_session_from_row(row: &Row) -> anyhow::Result<AgentSession> {
+        Ok(AgentSession {
+            id: row.get(0)?,
+            resume_id: row.get(1)?,
+            model: row.get(2)?,
+            allow_all_tools: row.get::<_, i64>(3)? != 0,
+            created_at: row.get(4)?,
+            last_used: row.get(5)?,
+        })
     }
 
     pub fn recent_records(&self, limit: usize) -> anyhow::Result<Vec<QueueRecord>> {

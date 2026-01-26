@@ -73,6 +73,16 @@ pub struct DeadLetterRecord {
     pub failed_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentSession {
+    pub id: i64,
+    pub resume_id: String,
+    pub model: String,
+    pub allow_all_tools: bool,
+    pub created_at: i64,
+    pub last_used: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum QueueStatus {

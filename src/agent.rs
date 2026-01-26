@@ -2,6 +2,8 @@ use std::process::Command;
 
 use anyhow::Context;
 
+use crate::models::AgentSession;
+
 pub trait AgentHarness {
     fn run(&self, prompt: &str) -> anyhow::Result<String>;
 }
@@ -9,6 +11,8 @@ pub trait AgentHarness {
 pub struct CopilotHarness {
     pub binary: String,
     pub model: String,
+    pub session: Option<String>,
+    pub allow_all_tools: bool,
 }
 
 impl CopilotHarness {
@@ -16,17 +20,44 @@ impl CopilotHarness {
         Self {
             binary: "copilot".to_string(),
             model: model.into(),
+            session: None,
+            allow_all_tools: true,
+        }
+    }
+
+    pub fn with_session(model: impl Into<String>, session: Option<&AgentSession>) -> Self {
+        let default_model = model.into();
+        let (model, session_id, allow_all_tools) = if let Some(session) = session {
+            (
+                session.model.clone(),
+                Some(session.resume_id.clone()),
+                session.allow_all_tools,
+            )
+        } else {
+            (default_model, None, true)
+        };
+        Self {
+            binary: "copilot".to_string(),
+            model,
+            session: session_id,
+            allow_all_tools,
         }
     }
 
     fn build_command(&self, prompt: &str) -> Command {
         let mut command = Command::new(&self.binary);
-        command
-            .arg("--model")
-            .arg(&self.model)
-            .arg("--silent")
-            .arg("-p")
-            .arg(prompt);
+        if let Some(session_id) = self.session.as_ref() {
+            command.arg("--resume").arg(session_id);
+            if self.allow_all_tools {
+                command.arg("--allow-all-tools");
+            }
+        } else {
+            command.arg("--model").arg(&self.model);
+            if self.allow_all_tools {
+                command.arg("--allow-all-tools");
+            }
+        }
+        command.arg("--silent").arg("-p").arg(prompt);
         command
     }
 }

@@ -1,13 +1,1 @@
- M README.md
- M RECEIPT.md
- M WORKPLAN.md
- M execution/changed_files.json
- M execution/discovery_log.md
- M execution/git_status.txt
- M execution/result.json
- M src/apply.rs
- M src/main.rs
- M src/queue.rs
- M src/request.rs
- M src/tui.rs
- M src/worker.rs
+

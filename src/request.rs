@@ -6,12 +6,14 @@ use std::thread;
 use anyhow::Context;
 
 use crate::agent::{AgentHarness, CopilotHarness};
-use crate::models::{ChangeOperation, ChangeRequest, OperationKind, TaskAssignment, TaskRequest};
+use crate::models::{
+    AgentSession, ChangeOperation, ChangeRequest, OperationKind, TaskAssignment, TaskRequest,
+};
 use crate::orchestrator;
 use crate::queue::SqliteQueue;
 use crate::validator;
 
-const DEFAULT_MODEL: &str = "gpt-5-mini";
+pub const DEFAULT_MODEL: &str = "gpt-5-mini";
 
 pub fn handle_request(
     queue: &SqliteQueue,
@@ -31,15 +33,25 @@ pub fn handle_request(
     let (result_tx, result_rx) = mpsc::channel();
     let mut handles = Vec::new();
     let use_agents = env::var("HYPERION_AGENT").is_ok_and(|val| val == "copilot");
+    let session = if use_agents {
+        queue.latest_agent_session()?
+    } else {
+        None
+    };
+    let session_for_threads = session.clone();
 
     for index in 0..agent_count {
         let receiver = Arc::clone(&receiver);
         let result_tx = result_tx.clone();
         let agent_name = format!("agent-{}", index + 1);
         let model_name = model.clone().unwrap_or_else(|| DEFAULT_MODEL.to_string());
+        let session_ref = session_for_threads.clone();
         handles.push(thread::spawn(move || {
             let harness = if use_agents {
-                Some(CopilotHarness::new(model_name))
+                Some(CopilotHarness::with_session(
+                    model_name.clone(),
+                    session_ref.as_ref(),
+                ))
             } else {
                 None
             };
@@ -99,6 +111,12 @@ pub fn handle_request(
         if let Err(err) = handle.join() {
             failures += 1;
             eprintln!("agent thread panicked: {err:?}");
+        }
+    }
+
+    if use_agents {
+        if let Some(session) = session {
+            let _ = queue.touch_agent_session(session.id);
         }
     }
 

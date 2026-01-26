@@ -1,59 +1,81 @@
-use std::io::Write;
-use std::process::{Command, Stdio};
+use std::{fs, path::Path, thread};
 
-use crate::models::{ChangeOperation, ChangeRequest};
-use anyhow::Context;
-use tracing::{error, info};
+use anyhow::{anyhow, Context};
+use diffy::{apply, Patch};
+use tracing::info;
+
+use crate::models::{ChangeOperation, ChangeRequest, OperationKind};
 
 pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
     info!(
         task_id = %request.task_id,
         agent = %request.agent,
         change_count = request.changes.len(),
-        "applying change request"
+        "applying change request via filesystem"
     );
-    for change in &request.changes {
-        apply_change_operation(change)?;
-    }
+
+    let operations = request.changes.clone();
+    thread::scope(|scope| -> anyhow::Result<()> {
+        let mut handles = Vec::with_capacity(operations.len());
+        for change in operations {
+            handles.push(scope.spawn(move || apply_change_operation(change)));
+        }
+
+        for handle in handles {
+            handle
+                .join()
+                .map_err(|_| anyhow!("worker thread panicked while applying changes"))??;
+        }
+
+        Ok(())
+    })?;
+
     info!(task_id = %request.task_id, "change request applied");
     Ok(())
 }
 
-fn apply_change_operation(change: &ChangeOperation) -> anyhow::Result<()> {
+fn apply_change_operation(change: ChangeOperation) -> anyhow::Result<()> {
+    let target = Path::new(&change.path);
     info!(
         path = %change.path,
         operation = ?change.operation,
-        "applying patch"
+        "applying filesystem change"
     );
-    let mut child = Command::new("git")
-        .arg("apply")
-        .arg("--whitespace=nowarn")
-        .arg("-")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("spawn git apply")?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(change.patch.as_bytes())
-            .context("write patch")?;
+    match change.operation {
+        OperationKind::Add => {
+            write_modification(target, "", &change)?;
+        }
+        OperationKind::Update => {
+            let existing = fs::read_to_string(target).unwrap_or_default();
+            write_modification(target, &existing, &change)?;
+        }
+        OperationKind::Delete => {
+            if target.exists() {
+                fs::remove_file(target).context("delete target file")?;
+            }
+        }
     }
 
-    let output = child.wait_with_output().context("wait git apply")?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let mut message = format!("git apply failed for {}", change.path);
-        if !stderr.is_empty() {
-            message.push_str(&format!(" stderr: {}", stderr));
-        }
-        if !stdout.is_empty() {
-            message.push_str(&format!(" stdout: {}", stdout));
-        }
-        error!("{}", message);
-        return Err(anyhow::anyhow!(message));
-    }
     Ok(())
+}
+
+fn write_modification(target: &Path, base: &str, change: &ChangeOperation) -> anyhow::Result<()> {
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).context("create target directories")?;
+    }
+
+    let content = apply_patch_contents(base, &change.patch);
+    fs::write(target, content).context("write patched file")?;
+    Ok(())
+}
+
+fn apply_patch_contents(base: &str, patch_text: &str) -> String {
+    if let Ok(patch) = Patch::from_str(patch_text) {
+        if let Ok(applied) = apply(base, &patch) {
+            return applied;
+        }
+    }
+
+    patch_text.to_string()
 }

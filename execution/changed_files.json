@@ -1,19 +1,7 @@
 {
-  "clean": false,
-  "dirty": true,
+  "clean": true,
+  "dirty": false,
   "files": [
-    "execution/changed_files.json",
-    "execution/discovery_log.md",
-    "execution/git_status.txt",
-    "execution/result.json",
-    "README.md",
-    "RECEIPT.md",
-    "src/apply.rs",
-    "src/main.rs",
-    "src/queue.rs",
-    "src/request.rs",
-    "src/tui.rs",
-    "src/worker.rs",
-    "WORKPLAN.md"
+
   ]
 }

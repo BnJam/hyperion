@@ -32,8 +32,9 @@
   "failures": [],
   "observations": [
     "`hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.",
-    "Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput with captured stderr/stdout to avoid TUI noise.",
-    "Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`."
+    "Applied change requests now mutate files directly via parallel filesystem writes instead of `git apply`, with stderr/stdout captured for errors.",
+    "Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`.",
+    "Filesystem modifications are picked up via fsnotify, recorded in the DB, and surfaced in the TUI's Modified Files pane."
   ],
   "next_steps": [
     "Document the parallel worker/agent architecture in README.md or governance notes."

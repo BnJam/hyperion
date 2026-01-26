@@ -73,9 +73,12 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Integrate Developer agents with scoped context.
 - Validate output against JSON change request schema.
 - Enforce lint/test execution instructions per task.
-- Provide a deterministic `hyperion request <file>` path that ingests `TaskRequest` JSON, turns it into queued change requests, and keeps the TUI updated without hanging.
-- Ensure `hyperion request` is headless: it should process or fail fast and report enqueued change requests without launching the TUI.
-- - Wire the Copilot agent harness (with a JSON contract) into `hyperion request`, falling back to deterministic stubs when the model output cannot be parsed, and allow the harness to be opt-in (e.g., `HYPERION_AGENT=copilot`).
+ - Provide a deterministic `hyperion request <file>` path that ingests `TaskRequest` JSON, turns it into queued change requests, and keeps the TUI updated without hanging.
+ - Ensure `hyperion request` is headless: it should process or fail fast and report enqueued change requests without launching the TUI.
+ - - Wire the Copilot agent harness (with a JSON contract) into `hyperion request`, falling back to deterministic stubs when the model output cannot be parsed, and allow the harness to be opt-in (e.g., `HYPERION_AGENT=copilot`).
+ - [x] Captured agent context persistence by storing `Copilot` session metadata (resume hash, allow-all flag) in SQLite and reusing it via `hyperion session init` / `session list`.
+ - [x] Added CLI bootstrapping (`hyperion session init --resume=<token>`) so ongoing runs can reuse pre-provisioned sessions instead of relying solely on per-request prompts.
+- [x] Added `testapp/orchestrate-request-003.json` to exercise the deterministic request path and to document the latest expectations for filesystem patches, fsnotify audits, and queue telemetry.
 
 **Deliverables**
 - Developer agent spec
@@ -91,6 +94,11 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Add worker loop to process queue entries with validation and checks.
 - Provide a deterministic/stubbed change-application path so the queue can be exercised without mutating source files during this integration phase.
 - Execute queued change requests by invoking `git apply` on each patch and let up to three worker threads process the queue in parallel for merge-ready throughput.
+- Migrate the worker patch step from `git apply` to direct filesystem writes and apply each change in parallel for faster throughput.
+- [x] Switched the worker `apply_change_request` pipeline to `diffy`-aware parallel filesystem writes, eliminating the `git apply` dependency and allowing deterministic patching via `write_modification`.
+- [x] Persisted worker telemetry (change_queue_logs) and fsnotify events (new `file_modifications` table) as JSON so the TUI can surface structured history without polluting the terminal.
+- [x] Explored how to expand the orchestrator/runtime lifetime so agents/workers persist for the duration of the binary (system lifecycle), backing state in the queue/DB and surfacing this persistence story through the CLI/TUI experience.
+- [x] Captured the runtime persistence story by wiring session data into SQLite and surfacing it in the CLI/TUI so the system lifecycle (binary execution) is the only persistence boundary.
 
 **Deliverables**
 - Merge Queue MVP
@@ -113,8 +121,11 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - TUI dashboard (ratatui) for live queue status and health indicators.
 - Expand the dashboard to multi-pane views including runtime insights and actionable guidance so operators can track workers, agents, and queue entries at a glance.
 - Publish hardening and resiliency checklist.
-- - Persist worker telemetry, events, and failure details in `change_queue_logs` (JSON) so the TUI/history pane can read structured audit trails without scraping stdout, and route console tracing output to `sink` unless `HYPERION_LOG=1`.
+- Persist worker telemetry, events, and failure details in `change_queue_logs` (JSON) so the TUI/history pane can read structured audit trails without scraping stdout, and route console tracing output to `sink` unless `HYPERION_LOG=1`.
 - Add a task history pane that surfaces the last ~100 task requests and their statuses so operators can verify ingestion success.
+- Capture filesystem modifications via `fsnotify`, record modified file paths into SQLite logs, and surface them in the TUI so historical audits can rely on the same data.
+- [x] Added TUI controls/documentation that explain how to bootstrap and re-use Copilot sessions (including `--resume=<sessionhash>` plus `--allow-all-tools`) once the initial handshake is provisioned, clarifying that these interactions live only for the duration of the `hyperion` binary execution.
+- [x] Reworked the ratatui dashboard into a multi-pane console that surfaces queue insights, up-to-100 task history entries, worker logs, and file modification audits sourced from the SQLite store so the screen stays clear of verbatim trace output.
 
 **Deliverables**
 - Metrics dashboards

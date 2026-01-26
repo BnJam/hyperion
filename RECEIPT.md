@@ -634,3 +634,48 @@
 ### Next Steps
 - Document the parallel worker/agent architecture in README.md or governance notes.
 
+## Receipt - 2026-01-26T18:23:24Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests now mutate files directly via parallel filesystem writes instead of `git apply`, with stderr/stdout captured for errors.
+- Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`.
+- Filesystem modifications are picked up via fsnotify, recorded in the DB, and surfaced in the TUI's Modified Files pane.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
