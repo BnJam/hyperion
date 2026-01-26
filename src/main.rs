@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 mod agent;
 mod apply;
+mod exporter;
 mod fs_watch;
 mod models;
 mod orchestrator;
@@ -53,6 +54,12 @@ enum Commands {
         agents: usize,
         #[arg(long, default_value_t = 3)]
         workers: usize,
+    },
+    Export {
+        #[arg(long)]
+        dest: Option<PathBuf>,
+        #[arg(long)]
+        overwrite: bool,
     },
     Init,
     Enqueue {
@@ -140,6 +147,12 @@ fn main() -> anyhow::Result<()> {
                 file.display(),
                 enqueued
             );
+            Ok(())
+        }
+        Some(Commands::Export { dest, overwrite }) => {
+            let target =
+                dest.unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            exporter::export_skill(&target, overwrite)?;
             Ok(())
         }
         Some(Commands::Init) => {

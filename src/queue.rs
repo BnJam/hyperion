@@ -6,7 +6,7 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 use std::sync::Mutex;
 
-use crate::models::{ChangeRequest, DeadLetterRecord, QueueRecord, QueueStatus};
+use crate::models::{AgentSession, ChangeRequest, DeadLetterRecord, QueueRecord, QueueStatus};
 
 pub struct SqliteQueue {
     conn: Mutex<Connection>,
@@ -24,6 +24,7 @@ pub struct ChangeQueueLog {
     pub created_at: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct FileModification {
     pub id: i64,
@@ -491,7 +492,7 @@ impl SqliteQueue {
         Ok(())
     }
 
-    fn agent_session_from_row(row: &Row) -> anyhow::Result<AgentSession> {
+    fn agent_session_from_row(row: &Row) -> rusqlite::Result<AgentSession> {
         Ok(AgentSession {
             id: row.get(0)?,
             resume_id: row.get(1)?,

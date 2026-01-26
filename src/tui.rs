@@ -24,6 +24,8 @@ use ratatui::{
 use crate::models::QueueStatus;
 #[cfg(feature = "tui")]
 use crate::queue::SqliteQueue;
+#[cfg(feature = "tui")]
+use serde_json::Value;
 
 #[cfg(feature = "tui")]
 pub struct TuiConfig {
@@ -41,6 +43,7 @@ pub fn run_dashboard(queue: &SqliteQueue) -> anyhow::Result<()> {
             db_path: "hyperion.db".to_string(),
             worker_count: 0,
             agent_count: 0,
+            modified_files: Arc::new(Mutex::new(VecDeque::new())),
         },
     )
 }
@@ -82,11 +85,11 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
             let applied_count = queue
                 .list(QueueStatus::Applied)
                 .map(|records| records.len())
-                .unwrap_or(0);
+                .unwrap_or(0usize);
             let failed_count = queue
                 .list(QueueStatus::Failed)
                 .map(|records| records.len())
-                .unwrap_or(0);
+                .unwrap_or(0usize);
             let dead_letters = queue.dead_letter_count().unwrap_or(0);
 
             let summary_text = format!(
@@ -207,7 +210,7 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                             &entry
                                 .details
                                 .as_ref()
-                                .map(|value| value.to_string())
+                                .map(|value: &Value| value.to_string())
                                 .unwrap_or_default(),
                             32,
                         ),
@@ -250,7 +253,7 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                             &event
                                 .details
                                 .as_ref()
-                                .map(|value| value.to_string())
+                                .map(|value: &Value| value.to_string())
                                 .unwrap_or_default(),
                             30,
                         ),

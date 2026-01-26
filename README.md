@@ -48,6 +48,8 @@ The Merge Queue/Buffer:
 - Validate change requests: `cargo run -- validate-change path/to/change.json`
 - Apply a change request with checks: `cargo run -- apply path/to/change.json --run-checks`
 - Operate the queue: `cargo run -- worker --run-checks --max-attempts 5`, `cargo run -- list-dead-letters`, `cargo run -- mark-applied <id>`
+- Export the Hyperion skill bundle to another workspace: `cargo run -- export --dest /path/to/target` (writes the `skills/` catalog, `assets/templates/EXPORT_GUIDE.template.md`, and generates an `EXPORT_GUIDE.md` describing how to initialize `hyperion session init`, submit requests, and view the TUI).
+  Add `--overwrite` to force replacing an existing export, or rerun without the flag to receive a prompt before overwriting the target directory’s `skills/` catalog.
  The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`).
 
 ## Example JSON Change Request (Sketch)

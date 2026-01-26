@@ -125,6 +125,8 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Add a task history pane that surfaces the last ~100 task requests and their statuses so operators can verify ingestion success.
 - Capture filesystem modifications via `fsnotify`, record modified file paths into SQLite logs, and surface them in the TUI so historical audits can rely on the same data.
 - [x] Added TUI controls/documentation that explain how to bootstrap and re-use Copilot sessions (including `--resume=<sessionhash>` plus `--allow-all-tools`) once the initial handshake is provisioned, clarifying that these interactions live only for the duration of the `hyperion` binary execution.
+- [x] Added `hyperion export` so operators can seed other directories with the Hyperion skill catalog, export guide, and guidance on reusing the runtime/session persistence layer.
+- Documented the new export command’s overwrite prompt/`--overwrite` flag so operators can refresh an existing export bundle without losing data inadvertently.
 - [x] Reworked the ratatui dashboard into a multi-pane console that surfaces queue insights, up-to-100 task history entries, worker logs, and file modification audits sourced from the SQLite store so the screen stays clear of verbatim trace output.
 
 **Deliverables**

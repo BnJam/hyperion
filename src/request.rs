@@ -6,9 +6,7 @@ use std::thread;
 use anyhow::Context;
 
 use crate::agent::{AgentHarness, CopilotHarness};
-use crate::models::{
-    AgentSession, ChangeOperation, ChangeRequest, OperationKind, TaskAssignment, TaskRequest,
-};
+use crate::models::{ChangeOperation, ChangeRequest, OperationKind, TaskAssignment, TaskRequest};
 use crate::orchestrator;
 use crate::queue::SqliteQueue;
 use crate::validator;
