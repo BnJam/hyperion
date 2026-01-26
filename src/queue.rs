@@ -3,12 +3,25 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde_json::Value;
 use std::sync::Mutex;
 
 use crate::models::{ChangeRequest, DeadLetterRecord, QueueRecord, QueueStatus};
 
 pub struct SqliteQueue {
     conn: Mutex<Connection>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct ChangeQueueLog {
+    pub id: i64,
+    pub queue_id: i64,
+    pub task_id: String,
+    pub level: String,
+    pub message: String,
+    pub details: Option<Value>,
+    pub created_at: i64,
 }
 
 impl SqliteQueue {
@@ -55,6 +68,19 @@ impl SqliteQueue {
              CREATE INDEX IF NOT EXISTS idx_change_queue_lease ON change_queue(leased_until);",
         )
         .context("create queue indices")?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS change_queue_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                queue_id INTEGER NOT NULL,
+                task_id TEXT NOT NULL,
+                level TEXT NOT NULL,
+                message TEXT NOT NULL,
+                details TEXT,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_change_queue_logs_queue_id ON change_queue_logs(queue_id);",
+        )
+        .context("create change queue logs table")?;
         Self::try_add_column(&conn, "attempts INTEGER NOT NULL DEFAULT 0")?;
         Self::try_add_column(&conn, "last_error TEXT")?;
         Self::try_add_column(&conn, "leased_until INTEGER")?;
@@ -78,6 +104,36 @@ impl SqliteQueue {
             params![QueueStatus::Pending.as_str(), payload, now_epoch()?],
         )?;
         Ok(conn.last_insert_rowid())
+    }
+
+    pub fn log_event(
+        &self,
+        queue_id: i64,
+        task_id: &str,
+        level: &str,
+        message: &str,
+        details: Option<&serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        let details_json = details
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "null".to_string());
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        conn.execute(
+            "INSERT INTO change_queue_logs (queue_id, task_id, level, message, details, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                queue_id,
+                task_id,
+                level,
+                message,
+                details_json,
+                now_epoch()?
+            ],
+        )?;
+        Ok(())
     }
 
     pub fn dequeue(&self, lease_duration: Duration) -> anyhow::Result<Option<QueueRecord>> {
@@ -211,6 +267,74 @@ impl SqliteQueue {
              ORDER BY id",
         )?;
         let mut rows = stmt.query(params![status.as_str()])?;
+        let mut records = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let status: String = row.get(1)?;
+            let payload: String = row.get(2)?;
+            let attempts: i64 = row.get(3)?;
+            let last_error: Option<String> = row.get(4)?;
+            let leased_until: Option<i64> = row.get(5)?;
+            let payload: ChangeRequest = serde_json::from_str(&payload)?;
+            records.push(QueueRecord {
+                id,
+                status: QueueStatus::from_string(&status)?,
+                payload,
+                attempts,
+                last_error,
+                leased_until,
+            });
+        }
+        Ok(records)
+    }
+
+    pub fn recent_logs(&self, limit: usize) -> anyhow::Result<Vec<ChangeQueueLog>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, queue_id, task_id, level, message, details, created_at
+             FROM change_queue_logs
+             ORDER BY created_at DESC
+             LIMIT ?1",
+        )?;
+        let mut rows = stmt.query(params![limit as i64])?;
+        let mut logs = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let queue_id: i64 = row.get(1)?;
+            let task_id: String = row.get(2)?;
+            let level: String = row.get(3)?;
+            let message: String = row.get(4)?;
+            let details_str: Option<String> = row.get(5)?;
+            let created_at: i64 = row.get(6)?;
+            let details = details_str.and_then(|text| serde_json::from_str::<Value>(&text).ok());
+            logs.push(ChangeQueueLog {
+                id,
+                queue_id,
+                task_id,
+                level,
+                message,
+                details,
+                created_at,
+            });
+        }
+        Ok(logs)
+    }
+
+    pub fn recent_records(&self, limit: usize) -> anyhow::Result<Vec<QueueRecord>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("queue lock poisoned"))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, status, payload, attempts, last_error, leased_until
+             FROM change_queue
+             ORDER BY id DESC
+             LIMIT ?1",
+        )?;
+        let mut rows = stmt.query(params![limit as i64])?;
         let mut records = Vec::new();
         while let Some(row) = rows.next()? {
             let id: i64 = row.get(0)?;

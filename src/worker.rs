@@ -10,6 +10,7 @@ use crate::apply;
 use crate::queue::SqliteQueue;
 use crate::runner;
 use crate::validator;
+use serde_json::json;
 
 pub struct WorkerConfig {
     pub lease_seconds: u64,
@@ -42,7 +43,21 @@ pub fn run_worker_with_signal(
     while running.load(Ordering::SeqCst) {
         let record = queue.dequeue(Duration::from_secs(config.lease_seconds))?;
         if let Some(record) = record {
+            let _ = queue.log_event(
+                record.id,
+                &record.payload.task_id,
+                "info",
+                "dequeued",
+                Some(&json!({"attempt": record.attempts})),
+            );
             if record.attempts > config.max_attempts {
+                let _ = queue.log_event(
+                    record.id,
+                    &record.payload.task_id,
+                    "warn",
+                    "max attempts reached",
+                    Some(&json!({"attempts": record.attempts, "max": config.max_attempts})),
+                );
                 warn!(
                     task_id = %record.payload.task_id,
                     attempts = record.attempts,
@@ -61,6 +76,13 @@ pub fn run_worker_with_signal(
 
             let validation = validator::validate_change_request(&record.payload);
             if !validation.valid {
+                let _ = queue.log_event(
+                    record.id,
+                    &record.payload.task_id,
+                    "warn",
+                    "validation failed",
+                    Some(&json!({"errors": validation.errors})),
+                );
                 warn!(
                     task_id = %record.payload.task_id,
                     errors = ?validation.errors,
@@ -74,6 +96,13 @@ pub fn run_worker_with_signal(
             }
 
             if let Err(err) = apply::apply_change_request(&record.payload) {
+                let _ = queue.log_event(
+                    record.id,
+                    &record.payload.task_id,
+                    "warn",
+                    "apply failed",
+                    Some(&json!({"error": err.to_string()})),
+                );
                 warn!(task_id = %record.payload.task_id, error = %err, "apply failed");
                 if record.attempts >= config.max_attempts {
                     queue.mark_failed(record.id, Some(err.to_string()))?;
@@ -85,6 +114,13 @@ pub fn run_worker_with_signal(
 
             if config.run_checks {
                 if let Err(err) = runner::run_checks(&record.payload.checks) {
+                    let _ = queue.log_event(
+                        record.id,
+                        &record.payload.task_id,
+                        "warn",
+                        "checks failed",
+                        Some(&json!({"error": err.to_string()})),
+                    );
                     warn!(task_id = %record.payload.task_id, error = %err, "checks failed");
                     if record.attempts >= config.max_attempts {
                         queue.mark_failed(record.id, Some(err.to_string()))?;
@@ -96,6 +132,7 @@ pub fn run_worker_with_signal(
             }
 
             queue.mark_applied(record.id)?;
+            let _ = queue.log_event(record.id, &record.payload.task_id, "info", "applied", None);
             info!(task_id = %record.payload.task_id, "change request applied");
         } else {
             std::thread::sleep(Duration::from_millis(config.poll_interval_ms));

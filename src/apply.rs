@@ -1,5 +1,9 @@
+use std::io::Write;
+use std::process::{Command, Stdio};
+
 use crate::models::{ChangeOperation, ChangeRequest};
-use tracing::info;
+use anyhow::Context;
+use tracing::{error, info};
 
 pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
     info!(
@@ -19,8 +23,37 @@ fn apply_change_operation(change: &ChangeOperation) -> anyhow::Result<()> {
     info!(
         path = %change.path,
         operation = ?change.operation,
-        "simulating patch application: {}",
-        change.patch
+        "applying patch"
     );
+    let mut child = Command::new("git")
+        .arg("apply")
+        .arg("--whitespace=nowarn")
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("spawn git apply")?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(change.patch.as_bytes())
+            .context("write patch")?;
+    }
+
+    let output = child.wait_with_output().context("wait git apply")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let mut message = format!("git apply failed for {}", change.path);
+        if !stderr.is_empty() {
+            message.push_str(&format!(" stderr: {}", stderr));
+        }
+        if !stdout.is_empty() {
+            message.push_str(&format!(" stdout: {}", stdout));
+        }
+        error!("{}", message);
+        return Err(anyhow::anyhow!(message));
+    }
     Ok(())
 }

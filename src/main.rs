@@ -118,12 +118,16 @@ fn main() -> anyhow::Result<()> {
             file,
             model,
             agents,
-            workers,
+            ..
         }) => {
             let agent_count = agents.clamp(1, 3);
-            let worker_count = workers.clamp(1, 3);
-            request::handle_request(queue.as_ref(), &file, model, agent_count)?;
-            run_integrated(queue.clone(), cli.db.clone(), worker_count, agent_count)
+            let enqueued = request::handle_request(queue.as_ref(), &file, model, agent_count)?;
+            println!(
+                "Processed request {} and enqueued {} change request(s)",
+                file.display(),
+                enqueued
+            );
+            Ok(())
         }
         Some(Commands::Init) => {
             println!("Initialized queue at {}", cli.db.display());
@@ -262,9 +266,15 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn init_tracing() {
+    use std::io;
     let filter = tracing_subscriber::EnvFilter::from_default_env()
         .add_directive("hyperion=info".parse().unwrap());
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
+    let fmt = tracing_subscriber::fmt().with_env_filter(filter);
+    if std::env::var("HYPERION_LOG").is_ok() {
+        let _ = fmt.try_init();
+    } else {
+        let _ = fmt.with_writer(io::sink).try_init();
+    }
 }
 
 fn run_integrated(

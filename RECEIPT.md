@@ -245,3 +245,392 @@
 - Consider hooking the agents back to Copilot or other LLMs once the stubbed change request path is hardened.
 - Document the new multi-pane layout and CLI request invocation in README.md or governance notes.
 
+## Receipt - 2026-01-26T08:15:10Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- src/main.rs
+- src/request.rs
+- src/tui.rs
+- src/queue.rs
+- WORKPLAN.md
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- Dashboard now keeps a dedicated task history pane showing the last 100 queue entries so operators can verify ingestion success.
+- The `hyperion request` command processes TaskRequest JSON headlessly and reports how many change requests were enqueued without launching the TUI.
+
+### Next Steps
+- Document the new request UX and history pane in README.md or governance guidance.
+
+## Receipt - 2026-01-26T16:44:32Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- src/main.rs
+- src/request.rs
+- src/tui.rs
+- src/queue.rs
+- WORKPLAN.md
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- Dashboard now keeps a dedicated task history pane showing the last 100 queue entries so operators can verify ingestion success.
+- The `hyperion request` command processes TaskRequest JSON headlessly and reports how many change requests were enqueued without launching the TUI.
+
+### Next Steps
+- Document the new request UX and history pane in README.md or governance guidance.
+
+## Receipt - 2026-01-26T16:58:26Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` now drives Copilot-based agents, with deterministic fallbacks, and reports enqueued change request counts.
+- Queued change requests are executed via `git apply` in parallel worker threads so the merge queue is real-time.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T17:41:34Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T17:45:29Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput.
+- Change requests now produce valid patch hunks so `git apply` no longer fails with "patch with only garbage".
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T17:50:33Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput.
+- Worker events (dequeue, validation, apply, checks, etc.) are logged as structured JSON inside SQLite for post-mortem analysis.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T17:57:30Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput.
+- Worker events (dequeue, validation, apply, checks, etc.) are logged as structured JSON inside SQLite for post-mortem analysis.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T18:01:20Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput.
+- Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+
+## Receipt - 2026-01-26T18:08:56Z
+
+- Status: success
+
+### Commands
+- cargo fmt
+- cargo fmt --check
+- cargo clippy --workspace --all-targets --all-features
+- cargo test --workspace
+
+### Validations
+- cargo fmt: ok
+- cargo fmt --check: ok
+- cargo clippy --workspace --all-targets --all-features: ok
+- cargo test --workspace: ok
+
+### Artifacts
+- README.md
+- WORKPLAN.md
+- src/apply.rs
+- src/main.rs
+- src/queue.rs
+- src/request.rs
+- src/tui.rs
+- execution/discovery_log.md
+- execution/result.json
+- execution/plan_discovery_report.json
+- execution/plan_validation_report.json
+- execution/tasks.json
+- execution/task_status_summary.json
+- execution/verification_report.json
+- RECEIPT.md
+
+### Failures
+- (none)
+
+### Observations
+- `hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.
+- Applied change requests are executed via `git apply`, and the worker pool can process them in parallel for merge-ready throughput with captured stderr/stdout to avoid TUI noise.
+- Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`.
+
+### Next Steps
+- Document the parallel worker/agent architecture in README.md or governance notes.
+

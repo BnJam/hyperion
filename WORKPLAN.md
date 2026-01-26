@@ -74,6 +74,8 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Validate output against JSON change request schema.
 - Enforce lint/test execution instructions per task.
 - Provide a deterministic `hyperion request <file>` path that ingests `TaskRequest` JSON, turns it into queued change requests, and keeps the TUI updated without hanging.
+- Ensure `hyperion request` is headless: it should process or fail fast and report enqueued change requests without launching the TUI.
+- - Wire the Copilot agent harness (with a JSON contract) into `hyperion request`, falling back to deterministic stubs when the model output cannot be parsed, and allow the harness to be opt-in (e.g., `HYPERION_AGENT=copilot`).
 
 **Deliverables**
 - Developer agent spec
@@ -88,6 +90,7 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Add lease-based dequeue with retry counters and error capture.
 - Add worker loop to process queue entries with validation and checks.
 - Provide a deterministic/stubbed change-application path so the queue can be exercised without mutating source files during this integration phase.
+- Execute queued change requests by invoking `git apply` on each patch and let up to three worker threads process the queue in parallel for merge-ready throughput.
 
 **Deliverables**
 - Merge Queue MVP
@@ -110,6 +113,8 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - TUI dashboard (ratatui) for live queue status and health indicators.
 - Expand the dashboard to multi-pane views including runtime insights and actionable guidance so operators can track workers, agents, and queue entries at a glance.
 - Publish hardening and resiliency checklist.
+- - Persist worker telemetry, events, and failure details in `change_queue_logs` (JSON) so the TUI/history pane can read structured audit trails without scraping stdout, and route console tracing output to `sink` unless `HYPERION_LOG=1`.
+- Add a task history pane that surfaces the last ~100 task requests and their statuses so operators can verify ingestion success.
 
 **Deliverables**
 - Metrics dashboards

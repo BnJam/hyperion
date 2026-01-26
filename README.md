@@ -21,9 +21,10 @@ This project defines a governance and execution system for multi-agent software 
 - **Engineer Agent:** Clarifies and prioritizes tasks.
 - **Orchestrator:** Splits tasks and enforces isolation rules.
 - **Developer Agents:** Implement targeted changes.
-- **Merge Queue/Buffer:** Applies changes via structured JSON patches.
-- **Queue Storage:** SQLite with WAL enabled for durability and concurrent writers.
+- **Merge Queue/Buffer:** Applies changes via structured JSON patches and a parallel worker pool that invokes `git apply`.
 - **Agent Harness:** Copilot CLI (model `gpt-5-mini`) behind a trait for easy swapping.
+- **Queue Storage:** SQLite with WAL enabled for durability and concurrent writers.
+- **Queue Logs:** Worker events are persisted as JSON in `change_queue_logs` so audit trails remain centralized.
 - **Schema Catalog:** Documented JSON schemas in `SCHEMAS.md`.
 
 ## Change Application Model
@@ -41,11 +42,13 @@ The Merge Queue/Buffer:
 - Leases dequeued work to allow retries on worker failure
 
 ## CLI Highlights
-- Validate a change request: `cargo run -- validate-change path/to/change.json`
-- Orchestrate a task request: `cargo run -- orchestrate path/to/request.json --out assignments.json`
-- Apply a change request: `cargo run -- apply path/to/change.json --run-checks`
-- Run the worker loop: `cargo run -- worker --run-checks --max-attempts 5`
-- Inspect dead letters: `cargo run -- list-dead-letters`
+- Launch the integrated runtime: `cargo run` (default) or `cargo run -- run` starts the TUI dashboard plus worker pool for live monitoring.
+- Enqueue a task request headlessly: `cargo run -- request path/to/request.json` (prints how many change requests were enqueued and does not open the TUI).
+  - To use the real Copilot harness instead of deterministic stubs, set `HYPERION_AGENT=copilot` before invoking `hyperion request`.
+- Validate change requests: `cargo run -- validate-change path/to/change.json`
+- Apply a change request with checks: `cargo run -- apply path/to/change.json --run-checks`
+- Operate the queue: `cargo run -- worker --run-checks --max-attempts 5`, `cargo run -- list-dead-letters`, `cargo run -- mark-applied <id>`
+ The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`).
 
 ## Example JSON Change Request (Sketch)
 ```json
