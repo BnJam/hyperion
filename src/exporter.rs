@@ -16,10 +16,8 @@ pub fn export_skill(target: &Path, overwrite: bool) -> Result<()> {
     fs::create_dir_all(&target)
         .with_context(|| format!("create target directory {}", target.display()))?;
     let skills_dir = target.join("skills");
-    if skills_dir.exists() && !overwrite {
-        if !confirm_overwrite(&skills_dir)? {
-            anyhow::bail!("export aborted by user");
-        }
+    if skills_dir.exists() && !overwrite && !confirm_overwrite(&skills_dir)? {
+        anyhow::bail!("export aborted by user");
     }
     copy_dir(Path::new("skills"), &target.join("skills"))?;
     copy_dir(
@@ -104,8 +102,5 @@ fn confirm_overwrite(path: &Path) -> Result<bool> {
     io::stdout().flush().ok();
     let mut buffer = String::new();
     io::stdin().read_line(&mut buffer)?;
-    Ok(matches!(
-        buffer.trim().to_lowercase().as_str(),
-        "y" | "yes"
-    ))
+    Ok(matches!(buffer.trim().to_lowercase().as_str(), "y" | "yes"))
 }

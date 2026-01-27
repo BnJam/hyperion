@@ -1,4 +1,7 @@
-use crate::models::{ChangeOperation, ChangeRequest, ValidationResult};
+use std::path::Path;
+
+use crate::models::{ChangeOperation, ChangeRequest, OperationKind, ValidationResult};
+use sha2::{Digest, Sha256};
 
 pub fn validate_change_request(request: &ChangeRequest) -> ValidationResult {
     let mut errors = Vec::new();
@@ -16,6 +19,8 @@ pub fn validate_change_request(request: &ChangeRequest) -> ValidationResult {
     }
     for (index, change) in request.changes.iter().enumerate() {
         validate_change_operation(index, change, &mut errors);
+        validate_patch_alignment(index, change, &mut errors);
+        validate_patch_hash(index, change, &mut errors);
     }
 
     ValidationResult {
@@ -31,6 +36,81 @@ fn validate_change_operation(index: usize, change: &ChangeOperation, errors: &mu
     if change.patch.trim().is_empty() {
         errors.push(format!("changes[{index}].patch is required"));
     }
+    let path = Path::new(&change.path);
+    if path.is_absolute() {
+        errors.push(format!(
+            "changes[{index}].path must be relative, got {}",
+            change.path
+        ));
+    }
+    if change.path.contains("..") {
+        errors.push(format!(
+            "changes[{index}].path must not contain '..', got {}",
+            change.path
+        ));
+    }
+}
+
+fn validate_patch_alignment(index: usize, change: &ChangeOperation, errors: &mut Vec<String>) {
+    if change.path.trim().is_empty() {
+        return;
+    }
+    let normalized = change.path.replace('\\', "/");
+    let add_marker = format!("+++ b/{normalized}");
+    let remove_marker = format!("--- a/{normalized}");
+    match change.operation {
+        OperationKind::Add => {
+            if !change.patch.contains(&add_marker) {
+                errors.push(format!(
+                    "changes[{index}]: add operation patch must mention {add_marker}"
+                ));
+            }
+        }
+        OperationKind::Update => {
+            if !change.patch.contains(&add_marker) {
+                errors.push(format!(
+                    "changes[{index}]: update patch must mention {add_marker}"
+                ));
+            }
+            if !change.patch.contains(&remove_marker) {
+                errors.push(format!(
+                    "changes[{index}]: update patch must mention {remove_marker}"
+                ));
+            }
+        }
+        OperationKind::Delete => {
+            if !change.patch.contains(&remove_marker) {
+                errors.push(format!(
+                    "changes[{index}]: delete patch must mention {remove_marker}"
+                ));
+            }
+        }
+    }
+}
+
+fn validate_patch_hash(index: usize, change: &ChangeOperation, errors: &mut Vec<String>) {
+    if change.patch.trim().is_empty() {
+        return;
+    }
+    let calculated = patch_hash(&change.patch);
+    match &change.patch_hash {
+        Some(expected) => {
+            if expected != &calculated {
+                errors.push(format!(
+                    "changes[{index}]: patch_hash mismatch (expected {calculated}, got {expected})"
+                ));
+            }
+        }
+        None => {
+            errors.push(format!("changes[{index}].patch_hash is required"));
+        }
+    }
+}
+
+fn patch_hash(patch: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(patch.as_bytes());
+    format!("{:x}", hasher.finalize())
 }
 
 #[cfg(test)]
@@ -47,6 +127,7 @@ mod tests {
                 path: "".to_string(),
                 operation: OperationKind::Update,
                 patch: "".to_string(),
+                patch_hash: Some(patch_hash("")),
             }],
             checks: vec![],
         };
@@ -62,13 +143,21 @@ mod tests {
 
     #[test]
     fn accepts_valid_request() {
+        let patch = "diff --git a/src/lib.rs b/src/lib.rs\n\
+        --- a/src/lib.rs\n\
+        +++ b/src/lib.rs\n\
+        @@ -1,1 +1,1 @@\n\
+        -old\n\
+        +new"
+            .replace("        ", "");
         let request = ChangeRequest {
             task_id: "TASK-1".to_string(),
             agent: "dev-1".to_string(),
             changes: vec![ChangeOperation {
                 path: "src/lib.rs".to_string(),
                 operation: OperationKind::Update,
-                patch: "@@ -1,1 +1,1 @@\n-old\n+new".to_string(),
+                patch: patch.clone(),
+                patch_hash: Some(patch_hash(&patch)),
             }],
             checks: vec!["cargo test".to_string()],
         };

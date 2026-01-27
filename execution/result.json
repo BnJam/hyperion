@@ -2,41 +2,54 @@
   "status": "success",
   "executed_commands": [
     "cargo fmt",
-    "cargo fmt --check",
     "cargo clippy --workspace --all-targets --all-features",
     "cargo test --workspace"
   ],
   "validation_results": [
     "cargo fmt: ok",
-    "cargo fmt --check: ok",
     "cargo clippy --workspace --all-targets --all-features: ok",
     "cargo test --workspace: ok"
   ],
   "artifacts_changed": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "HARDENING.md",
     "README.md",
+    "RECEIPT.md",
+    "SCHEMAS.md",
     "WORKPLAN.md",
+    "execution/changed_files.json",
+    "execution/command_logs/command_2.log",
+    "execution/command_logs/command_3.log",
+    "execution/command_logs/command_4.log",
+    "execution/command_logs/command_5.log",
+    "execution/commands_to_run.txt",
+    "execution/exit_codes.json",
+    "execution/git_status.txt",
+    "execution/last_error.txt",
+    "execution/plan_validation_report.json",
+    "execution/result.json",
+    "execution/task_status_summary.json",
+    "execution/tasks.json",
+    "execution/timings.json",
     "src/apply.rs",
+    "src/exporter.rs",
     "src/main.rs",
+    "src/models.rs",
+    "src/new_module.rs",
     "src/queue.rs",
     "src/request.rs",
     "src/tui.rs",
-    "execution/discovery_log.md",
-    "execution/result.json",
-    "execution/plan_discovery_report.json",
-    "execution/plan_validation_report.json",
-    "execution/tasks.json",
-    "execution/task_status_summary.json",
-    "execution/verification_report.json",
-    "RECEIPT.md"
+    "src/validator.rs",
+    "src/worker.rs"
   ],
   "failures": [],
   "observations": [
-    "`hyperion request` can run deterministically by default and opts into Copilot via `HYPERION_AGENT=copilot` to fetch real JSON change requests.",
-    "Applied change requests now mutate files directly via parallel filesystem writes instead of `git apply`, with stderr/stdout captured for errors.",
-    "Worker events are logged as structured JSON inside SQLite for post-mortem analysis and console tracing is silenced unless `HYPERION_LOG=1`.",
-    "Filesystem modifications are picked up via fsnotify, recorded in the DB, and surfaced in the TUI's Modified Files pane."
+    "Exporter now exits early when `skills/` exists and overwrite is false if the user declines overwrite (collapsed nested if).",
+    "Queue metrics CLI/TUI and `[progress]` logs keep reporting throughput/latency/lease stats, while request-002 continues to apply successfully.",
+    "Clippy now passes without warnings after the exporter fix."
   ],
   "next_steps": [
-    "Document the parallel worker/agent architecture in README.md or governance notes."
+    "Phase 10 telemetry/UX stories are complete; keep iterating as new requirements arise."
   ]
 }

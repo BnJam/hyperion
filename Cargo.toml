@@ -19,6 +19,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 ctrlc = "3.4"
 diffy = "0.4"
+sha2 = "0.10.9"
 
 ratatui = { version = "0.26", optional = true }
 crossterm = { version = "0.27", optional = true }

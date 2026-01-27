@@ -1,6 +1,6 @@
 use std::{fs, path::Path, thread};
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use diffy::{apply, Patch};
 use tracing::info;
 
@@ -24,7 +24,7 @@ pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
         for handle in handles {
             handle
                 .join()
-                .map_err(|_| anyhow!("worker thread panicked while applying changes"))??;
+                .map_err(|_| anyhow::anyhow!("worker thread panicked while applying changes"))??;
         }
 
         Ok(())
@@ -53,6 +53,11 @@ fn apply_change_operation(change: ChangeOperation) -> anyhow::Result<()> {
         OperationKind::Delete => {
             if target.exists() {
                 fs::remove_file(target).context("delete target file")?;
+            } else {
+                return Err(anyhow::anyhow!(
+                    "delete failed: {} does not exist",
+                    target.display()
+                ));
             }
         }
     }
@@ -65,17 +70,12 @@ fn write_modification(target: &Path, base: &str, change: &ChangeOperation) -> an
         fs::create_dir_all(parent).context("create target directories")?;
     }
 
-    let content = apply_patch_contents(base, &change.patch);
+    let content = apply_patch_contents(base, &change.patch)?;
     fs::write(target, content).context("write patched file")?;
     Ok(())
 }
 
-fn apply_patch_contents(base: &str, patch_text: &str) -> String {
-    if let Ok(patch) = Patch::from_str(patch_text) {
-        if let Ok(applied) = apply(base, &patch) {
-            return applied;
-        }
-    }
-
-    patch_text.to_string()
+fn apply_patch_contents(base: &str, patch_text: &str) -> anyhow::Result<String> {
+    let patch = Patch::from_str(patch_text).context("parse patch text")?;
+    apply(base, &patch).context("apply patch contents")
 }

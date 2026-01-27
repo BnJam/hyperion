@@ -2,7 +2,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tracing::{info, warn};
 
@@ -13,6 +13,7 @@ use crate::validator;
 use serde_json::json;
 
 pub struct WorkerConfig {
+    pub worker_id: String,
     pub lease_seconds: u64,
     pub poll_interval_ms: u64,
     pub run_checks: bool,
@@ -28,20 +29,33 @@ pub fn run_worker(queue: &SqliteQueue, config: WorkerConfig) -> anyhow::Result<(
     run_worker_with_signal(queue, config, running)
 }
 
+const PROGRESS_INTERVAL: Duration = Duration::from_secs(5);
+
 pub fn run_worker_with_signal(
     queue: &SqliteQueue,
     config: WorkerConfig,
     running: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
     info!(
+        worker_id = %config.worker_id,
         lease_seconds = config.lease_seconds,
         poll_interval_ms = config.poll_interval_ms,
         run_checks = config.run_checks,
         "worker started"
     );
 
+    let mut next_progress = Instant::now();
     while running.load(Ordering::SeqCst) {
-        let record = queue.dequeue(Duration::from_secs(config.lease_seconds))?;
+        let now = Instant::now();
+        if config.worker_id == "worker-cli" && now >= next_progress {
+            if let Err(err) = report_progress(queue) {
+                eprintln!("progress report failed: {err}");
+            }
+            next_progress = now + PROGRESS_INTERVAL;
+        }
+        let dequeue_start = Instant::now();
+        let record = queue.dequeue(Duration::from_secs(config.lease_seconds), &config.worker_id)?;
+        let dequeue_duration = dequeue_start.elapsed();
         if let Some(record) = record {
             let _ = queue.log_event(
                 record.id,
@@ -49,6 +63,17 @@ pub fn run_worker_with_signal(
                 "info",
                 "dequeued",
                 Some(&json!({"attempt": record.attempts})),
+            );
+            let _ = queue.log_event(
+                record.id,
+                &record.payload.task_id,
+                "info",
+                "dequeue_metrics",
+                Some(&json!({
+                    "dequeue_latency_ms": dequeue_duration.as_millis(),
+                    "poll_interval_ms": config.poll_interval_ms,
+                    "worker_id": config.worker_id
+                })),
             );
             if record.attempts > config.max_attempts {
                 let _ = queue.log_event(
@@ -95,6 +120,7 @@ pub fn run_worker_with_signal(
                 continue;
             }
 
+            let apply_start = Instant::now();
             if let Err(err) = apply::apply_change_request(&record.payload) {
                 let _ = queue.log_event(
                     record.id,
@@ -132,13 +158,52 @@ pub fn run_worker_with_signal(
             }
 
             queue.mark_applied(record.id)?;
-            let _ = queue.log_event(record.id, &record.payload.task_id, "info", "applied", None);
+            let apply_duration = apply_start.elapsed();
+            let _ = queue.log_event(
+                record.id,
+                &record.payload.task_id,
+                "info",
+                "applied",
+                Some(&json!({"apply_duration_ms": apply_duration.as_millis()})),
+            );
             info!(task_id = %record.payload.task_id, "change request applied");
         } else {
+            let _ = queue.log_event(
+                0,
+                "worker",
+                "info",
+                "idle",
+                Some(&json!({
+                    "worker_id": config.worker_id,
+                    "poll_interval_ms": config.poll_interval_ms
+                })),
+            );
             std::thread::sleep(Duration::from_millis(config.poll_interval_ms));
         }
     }
 
     info!("worker shutting down");
+    Ok(())
+}
+
+fn report_progress(queue: &SqliteQueue) -> anyhow::Result<()> {
+    let metrics = queue.queue_metrics(Some(60))?;
+    let counts = metrics.status_counts;
+    let fmt_opt = |value: Option<f64>, suffix: &str| {
+        value
+            .map(|v| format!("{:.1}{}", v, suffix))
+            .unwrap_or_else(|| "n/a".to_string())
+    };
+    println!(
+        "[progress] pending={} in_progress={} applied={} failed={} throughput={} avg_dequeue_latency={} avg_apply_duration={} lease_contention_events={}",
+        counts.pending,
+        counts.in_progress,
+        counts.applied,
+        counts.failed,
+        fmt_opt(metrics.throughput_per_minute, "/min"),
+        fmt_opt(metrics.avg_dequeue_latency_ms, "ms"),
+        fmt_opt(metrics.avg_apply_duration_ms, "ms"),
+        metrics.lease_contention_events,
+    );
     Ok(())
 }

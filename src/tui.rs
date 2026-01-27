@@ -1,7 +1,7 @@
 #[cfg(feature = "tui")]
 use std::{
     collections::VecDeque,
-    io,
+    io::{self, IsTerminal},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -28,11 +28,47 @@ use crate::queue::SqliteQueue;
 use serde_json::Value;
 
 #[cfg(feature = "tui")]
+const STATUS_FILTERS: [Option<QueueStatus>; 5] = [
+    None,
+    Some(QueueStatus::Pending),
+    Some(QueueStatus::InProgress),
+    Some(QueueStatus::Applied),
+    Some(QueueStatus::Failed),
+];
+
+#[cfg(feature = "tui")]
+const REFRESH_INTERVALS: [u64; 4] = [200, 500, 1000, 2000];
+
+#[cfg(feature = "tui")]
 pub struct TuiConfig {
     pub db_path: String,
     pub worker_count: usize,
     pub agent_count: usize,
     pub modified_files: Arc<Mutex<VecDeque<String>>>,
+}
+
+#[cfg(feature = "tui")]
+struct TuiState {
+    status_index: usize,
+    agent_filter: Option<String>,
+    refresh_index: usize,
+    selected_index: usize,
+    show_detail: bool,
+    show_events: bool,
+}
+
+#[cfg(feature = "tui")]
+impl Default for TuiState {
+    fn default() -> Self {
+        Self {
+            status_index: 0,
+            agent_filter: None,
+            refresh_index: 1,
+            selected_index: 0,
+            show_detail: true,
+            show_events: true,
+        }
+    }
 }
 
 #[cfg(feature = "tui")]
@@ -50,24 +86,78 @@ pub fn run_dashboard(queue: &SqliteQueue) -> anyhow::Result<()> {
 
 #[cfg(feature = "tui")]
 pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyhow::Result<()> {
+    if !io::stdout().is_terminal() {
+        eprintln!("TUI requires a terminal; skipping dashboard.");
+        return Ok(());
+    }
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    let mut state = TuiState::default();
 
     loop {
+        let pending_records = queue.list(QueueStatus::Pending).unwrap_or_default();
+        let in_progress_records = queue.list(QueueStatus::InProgress).unwrap_or_default();
+        let applied_count = queue
+            .list(QueueStatus::Applied)
+            .map(|records| records.len())
+            .unwrap_or(0usize);
+        let failed_count = queue
+            .list(QueueStatus::Failed)
+            .map(|records| records.len())
+            .unwrap_or(0usize);
+        let dead_letters = queue.dead_letter_count().unwrap_or(0);
+        let history_records = queue.recent_records(100).unwrap_or_default();
+        let metrics = queue.queue_metrics(Some(60)).unwrap_or_default();
+        let format_metric = |value: Option<f64>, suffix: &str| {
+            value
+                .map(|v| format!("{:.1}{}", v, suffix))
+                .unwrap_or_else(|| "n/a".to_string())
+        };
+        let mut queue_records = history_records.clone();
+        if let Some(filter) = STATUS_FILTERS[state.status_index] {
+            queue_records.retain(|record| record.status == filter);
+        }
+        if let Some(agent) = state.agent_filter.clone() {
+            queue_records.retain(|record| record.payload.agent == agent);
+        }
+        if queue_records.is_empty() {
+            state.selected_index = 0;
+        } else if state.selected_index >= queue_records.len() {
+            state.selected_index = queue_records.len() - 1;
+        }
+
+        let log_entries = queue.recent_logs(8).unwrap_or_default();
+        let file_events = queue.recent_file_events(8).unwrap_or_default();
+        let agent_names = {
+            let mut names: Vec<String> = history_records
+                .iter()
+                .map(|record| record.payload.agent.clone())
+                .collect();
+            names.sort();
+            names.dedup();
+            names
+        };
+
         terminal.draw(|frame| {
             let area = frame.size();
-            let vertical_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(1)
-                .constraints([
-                    Constraint::Length(6),
-                    Constraint::Length(12),
-                    Constraint::Min(12),
-                ])
-                .split(area);
+        let vertical_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([
+                Constraint::Length(9),
+                Constraint::Length(12),
+                Constraint::Min(12),
+            ])
+            .split(area);
+
+        let header_rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(5), Constraint::Length(3)])
+            .split(vertical_chunks[0]);
 
             let status_chunks = Layout::default()
                 .direction(Direction::Horizontal)
@@ -76,21 +166,7 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                     Constraint::Percentage(30),
                     Constraint::Percentage(30),
                 ])
-                .split(vertical_chunks[0]);
-
-            let pending_records = queue.list(QueueStatus::Pending).unwrap_or_default();
-            let in_progress_records = queue
-                .list(QueueStatus::InProgress)
-                .unwrap_or_default();
-            let applied_count = queue
-                .list(QueueStatus::Applied)
-                .map(|records| records.len())
-                .unwrap_or(0usize);
-            let failed_count = queue
-                .list(QueueStatus::Failed)
-                .map(|records| records.len())
-                .unwrap_or(0usize);
-            let dead_letters = queue.dead_letter_count().unwrap_or(0);
+                .split(header_rows[0]);
 
             let summary_text = format!(
                 "Queue Overview\nPending: {}\nIn Progress: {}\nApplied: {}\nFailed: {}\nDead Letters: {}",
@@ -119,31 +195,61 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 .block(Block::default().title("Runtime").borders(Borders::ALL));
             frame.render_widget(runtime, status_chunks[1]);
 
-            let guidance_text = "Controls\nq : Quit\nhyperion request <file> : enqueue task request\nhyperion session init --resume=<token> [--model=<name>] [--allow-all-tools=<bool>]\nhyperion session list : view stored Copilot sessions\nhyperion Tui : refresh dashboard"
+            let status_label = match STATUS_FILTERS[state.status_index] {
+                Some(status) => status.as_str(),
+                None => "all",
+            };
+            let agent_label = state
+                .agent_filter
+                .as_deref()
+                .unwrap_or("all agents")
                 .to_string();
+            let guidance_text = format!(
+                "Controls\nq: Quit\ns: Cycle status filter ({status_label})\na: Cycle agent ({agent_label})\nr: Refresh {refresh}ms\nd: Toggle detail pane ({})\ne: Toggle events ({})\narrow/↓: move selection\nhyperion request <file>: enqueue task request\nhyperion session init --resume=<token> [--model=<name>] [--allow-all-tools=<bool>]\nhyperion session list: show stored Copilot sessions\nhyperion queue-metrics --format json --since {window}: export throughput/latency/lease stats\n`hyperion run` / `hyperion worker` print `[progress]` lines with the same metrics before the TUI opens\n",
+                if state.show_detail { "on" } else { "off" },
+                if state.show_events { "on" } else { "off" },
+                refresh = REFRESH_INTERVALS[state.refresh_index],
+                window = metrics.window_seconds,
+            );
             let guidance = Paragraph::new(guidance_text)
                 .block(Block::default().title("Guidance").borders(Borders::ALL));
             frame.render_widget(guidance, status_chunks[2]);
+
+            let metrics_text = format!(
+                "Window: {}s\nThroughput: {}\nAvg dequeue latency: {}\nAvg apply duration: {}\nAvg poll interval: {}\nLease contention events: {}\nQueue metrics panel + `[progress]` logs share these numbers; run `hyperion queue-metrics --format json --since {}` for structured output.",
+                metrics.window_seconds,
+                format_metric(metrics.throughput_per_minute, "/min"),
+                format_metric(metrics.avg_dequeue_latency_ms, "ms"),
+                format_metric(metrics.avg_apply_duration_ms, "ms"),
+                format_metric(metrics.avg_poll_interval_ms, "ms"),
+                metrics.lease_contention_events,
+                metrics.window_seconds,
+            );
+            let metrics_block = Paragraph::new(metrics_text)
+                .block(Block::default().title("Metrics").borders(Borders::ALL));
+            frame.render_widget(metrics_block, header_rows[1]);
 
             let queue_middle_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
                 .split(vertical_chunks[1]);
 
-            let mut queue_records = Vec::new();
-            queue_records.extend(pending_records.clone());
-            queue_records.extend(in_progress_records.clone());
-
             let queue_rows: Vec<Row> = queue_records
                 .iter()
+                .enumerate()
                 .take(10)
-                .map(|record| {
+                .map(|(idx, record)| {
                     Row::new(vec![
                         record.id.to_string(),
                         record.payload.task_id.clone(),
                         record.payload.agent.clone(),
                         record.status.as_str().to_string(),
                         record.attempts.to_string(),
+                        if idx == state.selected_index {
+                            "➜".to_string()
+                        } else {
+                            "".to_string()
+                        },
                     ])
                 })
                 .collect();
@@ -154,9 +260,17 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 Constraint::Length(12),
                 Constraint::Length(12),
                 Constraint::Length(10),
+                Constraint::Length(3),
             ];
             let queue_table = Table::new(queue_rows, queue_widths)
-                .header(Row::new(vec!["ID", "Task ID", "Agent", "Status", "Attempts"]))
+                .header(Row::new(vec![
+                    "ID",
+                    "Task ID",
+                    "Agent",
+                    "Status",
+                    "Attempts",
+                    "Sel",
+                ]))
                 .block(
                     Block::default()
                         .title("Recent Queue Entries")
@@ -164,7 +278,6 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 );
             frame.render_widget(queue_table, queue_middle_chunks[0]);
 
-            let history_records = queue.recent_records(100).unwrap_or_default();
             let history_rows: Vec<Row> = history_records
                 .iter()
                 .take(8)
@@ -198,7 +311,6 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
                 .split(vertical_chunks[2]);
 
-            let log_entries = queue.recent_logs(8).unwrap_or_default();
             let log_rows: Vec<Row> = log_entries
                 .iter()
                 .map(|entry| {
@@ -226,22 +338,31 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 Constraint::Length(32),
                 Constraint::Length(10),
             ];
-            let log_table = Table::new(log_rows, log_widths)
-                .header(Row::new(vec![
-                    "Task ID",
-                    "Level",
-                    "Message",
-                    "Details",
-                    "Created",
-                ]))
-                .block(
-                    Block::default()
-                        .title("Worker Logs")
-                        .borders(Borders::ALL),
-                );
-            frame.render_widget(log_table, bottom_chunks[0]);
+            let log_block = Block::default()
+                .title("Worker Logs")
+                .borders(Borders::ALL);
+            if state.show_events {
+                let log_table = Table::new(log_rows, log_widths)
+                    .header(Row::new(vec![
+                        "Task ID",
+                        "Level",
+                        "Message",
+                        "Details",
+                        "Created",
+                    ]))
+                    .block(log_block);
+                frame.render_widget(log_table, bottom_chunks[0]);
+            } else {
+                let paused = Paragraph::new("Worker event stream paused. Press 'e' to resume.")
+                    .block(
+                        log_block
+                            .clone()
+                            .title("Worker Logs (paused)")
+                            .borders(Borders::ALL),
+                    );
+                frame.render_widget(paused, bottom_chunks[0]);
+            }
 
-            let file_events = queue.recent_file_events(8).unwrap_or_default();
             let file_event_rows: Vec<Row> = file_events
                 .iter()
                 .map(|event| {
@@ -283,11 +404,47 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                         .borders(Borders::ALL),
                 );
 
-            let files_stack = Layout::default()
+            let details_chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(9), Constraint::Min(5)])
+                .constraints([
+                    Constraint::Length(9),
+                    Constraint::Length(6),
+                    Constraint::Min(5),
+                ])
                 .split(bottom_chunks[1]);
-            frame.render_widget(file_event_table, files_stack[0]);
+            frame.render_widget(file_event_table, details_chunks[0]);
+
+            let detail_text = if state.show_detail {
+                if let Some(record) = queue_records.get(state.selected_index) {
+                    format!(
+                        "Task: {}\nAgent: {}\nStatus: {}\nAttempts: {}\nLease until: {:?}\nLease owner: {}\nLast error: {}",
+                        record.payload.task_id,
+                        record.payload.agent,
+                        record.status.as_str(),
+                        record.attempts,
+                        record.leased_until,
+                        record
+                            .lease_owner
+                            .clone()
+                            .unwrap_or_else(|| "<none>".to_string()),
+                        record
+                            .last_error
+                            .clone()
+                            .unwrap_or_else(|| "<none>".to_string())
+                    )
+                } else {
+                    "No queue records match the current filter.".to_string()
+                }
+            } else {
+                "Detail pane hidden. Press 'd' to show.".to_string()
+            };
+            let detail_para = Paragraph::new(detail_text)
+                .block(
+                    Block::default()
+                        .title("Selection Detail")
+                        .borders(Borders::ALL),
+                );
+            frame.render_widget(detail_para, details_chunks[1]);
 
             let modified_text = {
                 let files = config.modified_files.lock().unwrap();
@@ -295,10 +452,10 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                     "No recent modifications".to_string()
                 } else {
                     files
-                        .iter()
-                        .take(5)
-                        .map(|file| file.clone())
-                        .collect::<Vec<_>>()
+                .iter()
+                .take(5)
+                .cloned()
+                .collect::<Vec<_>>()
                         .join("\n")
                 }
             };
@@ -308,13 +465,44 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                         .title("Recent Local Modifications")
                         .borders(Borders::ALL),
                 );
-            frame.render_widget(modified_para, files_stack[1]);
+            frame.render_widget(modified_para, details_chunks[2]);
         })?;
 
-        if event::poll(Duration::from_millis(200))? {
+        let refresh_duration = Duration::from_millis(REFRESH_INTERVALS[state.refresh_index]);
+        if event::poll(refresh_duration)? {
             if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
+                match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('s') => {
+                        state.status_index = (state.status_index + 1) % STATUS_FILTERS.len();
+                        state.selected_index = 0;
+                    }
+                    KeyCode::Char('a') => {
+                        state.agent_filter =
+                            cycle_agent_filter(&agent_names, state.agent_filter.as_deref());
+                        state.selected_index = 0;
+                    }
+                    KeyCode::Char('r') => {
+                        state.refresh_index = (state.refresh_index + 1) % REFRESH_INTERVALS.len();
+                    }
+                    KeyCode::Char('d') => {
+                        state.show_detail = !state.show_detail;
+                    }
+                    KeyCode::Char('e') => {
+                        state.show_events = !state.show_events;
+                    }
+                    KeyCode::Up => {
+                        if state.selected_index > 0 {
+                            state.selected_index -= 1;
+                        }
+                    }
+                    KeyCode::Down => {
+                        if !queue_records.is_empty() {
+                            state.selected_index =
+                                (state.selected_index + 1).min(queue_records.len() - 1);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -334,6 +522,22 @@ fn truncate(value: &str, max: usize) -> String {
         truncated.push('…');
         truncated
     }
+}
+
+#[cfg(feature = "tui")]
+fn cycle_agent_filter(names: &[String], current: Option<&str>) -> Option<String> {
+    if names.is_empty() {
+        return None;
+    }
+    if let Some(current) = current {
+        if let Some(pos) = names.iter().position(|name| name == current) {
+            if pos + 1 < names.len() {
+                return Some(names[pos + 1].clone());
+            }
+            return None;
+        }
+    }
+    Some(names[0].clone())
 }
 
 #[cfg(not(feature = "tui"))]

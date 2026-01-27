@@ -15,7 +15,9 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Employs a Merge Queue/Buffer to apply changes safely and at scale.
 
 ## Non-Goals
-- Not specified in the source plan.
+- No rewrites that replace the in-repo SQLite-backed queue with an external database.
+- No UX overhaul that adds a separate GUI beyond the existing CLI/TUI surfaces.
+- No autonomous command execution not explicitly enumerated in the Commands section.
 
 ## Scope
 - Multi-agent orchestration system for this repo (Engineer, Orchestrator, Developer, Merge Queue).
@@ -134,6 +136,52 @@ Establish a clear, staged plan to design and implement a multi-agent orchestrati
 - Incident response checklist
 - Hardening & resiliency guide
 
+### Phase 7: Queue Performance & Resilience
+- [x] Replace the single `Mutex<Connection>` in `SqliteQueue` with per-worker (or pooled) connections, keep prepared statements warm, and limit lock spans so multiple workers can pull/dequeue/apply in parallel without contention.
+- [x] Harden the dequeue/update sequence with an explicit `BEGIN IMMEDIATE`, a selective lease filter on `(status, leased_until)` plus a composite index covering `(status, leased_until, id)`, and a `lease_owner` audit column to avoid lost leases when threads overlap.
+- [x] Surface dequeue latency, apply duration, and poll interval metrics in `change_queue_logs` and `file_modifications` so the TUI/dashboard can track throughput trends without external tracing.
+- [x] Add TTL/archival controls for `change_queue` rows and dead-letter entries as part of workload-scaling experiments, balancing faster reads for active work with bounded history retention.
+
+**Deliverables**
+- Queue telemetry report (latency, contention, throughput) with new indexes/procedures documented.
+- Updated queue schema migration summary covering lease owner, indexes, TTL strategy, and connection usage.
+- Performance regression checks (benchmarks or smoke tests) that run `cargo test --workspace` after schema upgrades.
+
+### Phase 8: CLI & TUI Experience
+- [x] Add JSON/flags to CLI listing commands (`List`, `ListDeadLetters`, `History`, `Worker Logs`) so automation pipelines can consume structured records, while `--since`/`--limit` filters support narrower views (referencing `src/main.rs`’ simple prints).
+- Teach `hyperion run`/`worker` to emit periodic progress status (applied/failed counts and dequeue deltas) so operators know whether the queue is in steady state before opening the TUI.
+- Expand `run_dashboard_with_config` to allow interactive filtering (status/agent), adjustable refresh rates, a detail pane for the selected queue record/log entry, and optional event-sourcing toggles so operators can digest the new metrics without repaint noise.
+- [x] Add CLI/TUI guidance that explains the new filtering controls and the expected throughput ranges, surfacing the `worker_count` and new metrics streamed from the queue logs to highlight the “live queue” status.
+
+**Deliverables**
+- CLI reference note describing `--format json`, `--since`, and progress output for the core queue commands.
+- TUI help overlay or panel describing filters/refresh controls and showing current metrics (queue depth, apply latency, worker count).
+- UX checklist covering key flows (request enqueue, worker progress, merge queue status, audit logs).
+
+
+### Phase 9: Validation, Diagnostics & Testing
+- [x] Strengthen `validator::validate_change_request` so it checks patch-target alignment, ensures `operation` matches the patch contents, and enforces per-change hashes/signatures before enqueueing to avoid drift (`src/validator.rs` currently only checks presence of fields).
+- [x] Harden `apply::apply_change_request` to surface deterministic failure reasons (e.g., invalid patch format, permission errors) instead of silently writing the literal patch text when `diffy::apply` fails, and capture stdout/stderr into the queue log records for postmortem clarity.
+- [x] Add unit/integration tests around `SqliteQueue` lease/mark transitions, worker retries, and CLI/TUI progress hooks plus `cargo fmt/clippy/test` automation to prove performance and safety improvements survive regression.
+- [x] Build a diagnostics command (`hyperion doctor` or `hyperion inspect-queue`) that validates schema migrations, connection health, and WAL archival state before workers start, reusing the `SqliteQueue` APIs to check indexes/TTL columns added in earlier phases.
+- [x] Document the new validation rules/checks in `SCHEMAS.md`, HARDENING.md, and README.md so contributors know what must pass before the queue applies changes.
+
+**Deliverables**
+- Improved validator module with extended patch/schema checks and signature hooks.
+- Apply pipeline failure report format plus stored stdout/stderr for queue log auditing.
+- Test matrix note (unit + integration + CLI) outlining commands to run after each schema change, plus new diagnostics command documentation.
+
+### Phase 10: Performance, Metrics & UX Refinement
+- [x] Add queue-side instrumentation that snapshots throughput/latency/contended-lease metrics, caches the structured telemetry, and surfaces it via CLI/TUI (flags, overlay, or dedicated command).
+- [x] Teach `hyperion run`/`worker` to emit periodic progress summaries (applied/failed counts, lease deltas, queue depth) so headless runs report steady-state health before the TUI launches.
+- [x] Extend the CLI/TUI guidance to describe refresh/filter controls, throughput expectations, and live worker counts/latency trends so operators have consistent UX cues when consuming the metrics.
+- [x] Capture the new telemetry and progress behavior in README/HARDENING/SCHEMAS so downstream contributors know how to rerun or interpret the signals.
+**Deliverables**
+- [x] Queue telemetry API plus a CLI hook (e.g., `hyperion queue-metrics --format json`) exposing throughput, apply latency, and lease contention.
+- [x] Periodic progress output for `hyperion run`/`worker` commands that reports counts and queue depth in a predictable, machine-readable format.
+- [x] TUI guidance overlay/panel describing filters, refresh rates, metrics, and queue-health expectations.
+- [x] Documentation updates in README/HARDENING/SCHEMAS describing the new telemetry and UX behavior.
+
 ## Commands
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features
@@ -149,4 +197,4 @@ cargo test --workspace
 ## Approval
 Approved: yes
 Approved by: not specified
-Approved on:
+Approved on: 2026-01-26

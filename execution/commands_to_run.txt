@@ -1,0 +1,3 @@
+cargo fmt
+cargo clippy --workspace --all-targets --all-features
+cargo test --workspace

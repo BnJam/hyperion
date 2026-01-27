@@ -1,9 +1,13 @@
-use std::env;
-use std::path::Path;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::{
+    env, fs,
+    path::Path,
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
 
 use anyhow::Context;
+use diffy::create_patch;
+use sha2::{Digest, Sha256};
 
 use crate::agent::{AgentHarness, CopilotHarness};
 use crate::models::{ChangeOperation, ChangeRequest, OperationKind, TaskAssignment, TaskRequest};
@@ -136,6 +140,11 @@ fn run_assignment(
             if let Ok(mut request) = serde_json::from_str::<ChangeRequest>(&response) {
                 request.task_id = assignment.task_id.clone();
                 request.agent = agent_name.to_string();
+                for change in request.changes.iter_mut() {
+                    if change.patch_hash.is_none() {
+                        change.patch_hash = Some(compute_patch_hash(&change.patch));
+                    }
+                }
                 return Ok(request);
             } else {
                 eprintln!("failed to parse agent response");
@@ -181,21 +190,43 @@ fn build_change_operation(
     assignment: &TaskAssignment,
     agent_name: &str,
 ) -> ChangeOperation {
+    let target = Path::new(path);
+    let base_content = fs::read_to_string(target).unwrap_or_default();
+    let addition = format!(
+        "// Orchestrated update for {task_id} by {agent}\n",
+        task_id = assignment.task_id,
+        agent = agent_name
+    );
+    let mut updated_content = base_content.clone();
+    if !updated_content.is_empty() && !updated_content.ends_with('\n') {
+        updated_content.push('\n');
+    }
+    updated_content.push_str(&addition);
+    let mut patch_body = create_patch(&base_content, &updated_content).to_string();
+    if let Some(pos) = patch_body.find("@@") {
+        patch_body = patch_body[pos..].to_string();
+    }
     let patch = format!(
         "diff --git a/{path} b/{path}\n\
 index 0000000..0000000 100644\n\
 --- a/{path}\n\
 +++ b/{path}\n\
-@@ -0,0 +1 @@\n\
-// Orchestrated update for {task_id} by {agent}\n",
+{body}",
         path = path,
-        task_id = assignment.task_id,
-        agent = agent_name
+        body = patch_body
     );
+    let patch_hash = compute_patch_hash(&patch);
 
     ChangeOperation {
         path: path.to_string(),
         operation: OperationKind::Update,
         patch,
+        patch_hash: Some(patch_hash),
     }
+}
+
+fn compute_patch_hash(patch: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(patch.as_bytes());
+    format!("{:x}", hasher.finalize())
 }

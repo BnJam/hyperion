@@ -1,20 +1,14 @@
-  init               
-  enqueue            
-  dequeue            
-  list               
-  list-dead-letters  
-  mark-applied       
-  mark-failed        
-  watch              
-  tui                
-  agent              
-  validate-change    
-  orchestrate        
-  apply              
-  worker             
-  help               Print this message or the help of the given subcommand(s)
+    Updating crates.io index
+warning: spurious network error (3 tries remaining): [6] Couldn't resolve host name (Could not resolve host: index.crates.io)
+warning: spurious network error (2 tries remaining): [6] Couldn't resolve host name (Could not resolve host: index.crates.io)
+warning: spurious network error (1 try remaining): [6] Couldn't resolve host name (Could not resolve host: index.crates.io)
+error: failed to get `anyhow` as a dependency of package `hyperion v1.0.0 (/Users/bsmith/bnjam/hyperion)`
 
-Options:
-      --db <DB>  [default: hyperion.db]
-  -h, --help     Print help
-  -V, --version  Print version
+Caused by:
+  download of config.json failed
+
+Caused by:
+  failed to download from `https://index.crates.io/config.json`
+
+Caused by:
+  [6] Couldn't resolve host name (Could not resolve host: index.crates.io)

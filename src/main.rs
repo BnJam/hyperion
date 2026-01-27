@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 mod agent;
 mod apply;
+mod doctor;
 mod exporter;
 mod fs_watch;
 mod models;
@@ -27,6 +28,7 @@ use crate::agent::AgentHarness;
 use crate::request::DEFAULT_MODEL;
 use models::QueueStatus;
 use queue::SqliteQueue;
+use serde_json::to_string_pretty;
 
 #[derive(Parser)]
 #[command(name = "hyperion", version, about = "Multi-agent orchestration queue")]
@@ -71,8 +73,21 @@ enum Commands {
     },
     List {
         status: Option<QueueStatus>,
+        #[arg(long)]
+        format: Option<String>,
+        #[arg(long)]
+        since: Option<i64>,
+        #[arg(long)]
+        limit: Option<usize>,
     },
-    ListDeadLetters,
+    ListDeadLetters {
+        #[arg(long)]
+        format: Option<String>,
+        #[arg(long)]
+        since: Option<i64>,
+        #[arg(long)]
+        limit: Option<usize>,
+    },
     MarkApplied {
         id: i64,
     },
@@ -112,6 +127,8 @@ enum Commands {
         run_checks: bool,
         #[arg(long, default_value = "5")]
         max_attempts: i64,
+        #[arg(long, default_value = "worker-cli")]
+        worker_id: String,
     },
     SessionInit {
         #[arg(long)]
@@ -122,6 +139,13 @@ enum Commands {
         allow_all_tools: bool,
     },
     SessionList,
+    Doctor,
+    QueueMetrics {
+        #[arg(long)]
+        since: Option<i64>,
+        #[arg(long)]
+        format: Option<String>,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -167,7 +191,9 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some(Commands::Dequeue { lease_seconds }) => {
-            if let Some(record) = queue.dequeue(std::time::Duration::from_secs(lease_seconds))? {
+            if let Some(record) =
+                queue.dequeue(std::time::Duration::from_secs(lease_seconds), "cli")?
+            {
                 println!(
                     "Dequeued {} from {} (attempt {})",
                     record.id, record.payload.task_id, record.attempts
@@ -177,33 +203,62 @@ fn main() -> anyhow::Result<()> {
             }
             Ok(())
         }
-        Some(Commands::List { status }) => {
+        Some(Commands::List {
+            status,
+            format,
+            since,
+            limit,
+        }) => {
             let status = status.unwrap_or(QueueStatus::Pending);
-            let records = queue.list(status)?;
-            for record in records {
-                println!(
-                    "{} {} {} attempts={} lease_until={:?}",
-                    record.id,
-                    record.status.as_str(),
-                    record.payload.task_id,
-                    record.attempts,
-                    record.leased_until
-                );
+            let mut records = queue.list(status)?;
+            if let Some(since) = since {
+                records.retain(|record| record.created_at >= since);
+            }
+            if let Some(limit) = limit {
+                records.truncate(limit);
+            }
+            if format.as_deref() == Some("json") {
+                println!("{}", to_string_pretty(&records)?);
+            } else {
+                for record in records {
+                    println!(
+                        "{} {} {} attempts={} lease_until={:?}",
+                        record.id,
+                        record.status.as_str(),
+                        record.payload.task_id,
+                        record.attempts,
+                        record.leased_until
+                    );
+                }
             }
             Ok(())
         }
-        Some(Commands::ListDeadLetters) => {
-            let records = queue.list_dead_letters()?;
-            for record in records {
-                println!(
-                    "{} queue_id={} task_id={} agent={} failed_at={} error={:?}",
-                    record.id,
-                    record.queue_id,
-                    record.task_id,
-                    record.agent,
-                    record.failed_at,
-                    record.error
-                );
+        Some(Commands::ListDeadLetters {
+            format,
+            since,
+            limit,
+        }) => {
+            let mut records = queue.list_dead_letters()?;
+            if let Some(since) = since {
+                records.retain(|record| record.failed_at >= since);
+            }
+            if let Some(limit) = limit {
+                records.truncate(limit);
+            }
+            if format.as_deref() == Some("json") {
+                println!("{}", to_string_pretty(&records)?);
+            } else {
+                for record in records {
+                    println!(
+                        "{} queue_id={} task_id={} agent={} failed_at={} error={:?}",
+                        record.id,
+                        record.queue_id,
+                        record.task_id,
+                        record.agent,
+                        record.failed_at,
+                        record.error
+                    );
+                }
             }
             Ok(())
         }
@@ -310,15 +365,51 @@ fn main() -> anyhow::Result<()> {
             poll_interval_ms,
             run_checks,
             max_attempts,
+            worker_id,
         }) => worker::run_worker(
             queue.as_ref(),
             worker::WorkerConfig {
+                worker_id,
                 lease_seconds,
                 poll_interval_ms,
                 run_checks,
                 max_attempts,
             },
         ),
+        Some(Commands::Doctor) => {
+            doctor::run(queue.as_ref())?;
+            Ok(())
+        }
+        Some(Commands::QueueMetrics { since, format }) => {
+            let metrics = queue.queue_metrics(since)?;
+            if format.as_deref() == Some("json") {
+                println!("{}", to_string_pretty(&metrics)?);
+            } else {
+                let counts = metrics.status_counts;
+                let formatted = |value: Option<f64>, suffix: &str| {
+                    value
+                        .map(|v| format!("{:.1}{}", v, suffix))
+                        .unwrap_or_else(|| "n/a".to_string())
+                };
+                println!(
+                    "Queue metrics ({}s window): pending={} in_progress={} applied={} failed={} throughput={} lease_contention_events={}",
+                    metrics.window_seconds,
+                    counts.pending,
+                    counts.in_progress,
+                    counts.applied,
+                    counts.failed,
+                    formatted(metrics.throughput_per_minute, "/min"),
+                    metrics.lease_contention_events
+                );
+                println!(
+                    "           avg_dequeue_latency={} avg_apply_duration={} avg_poll_interval={}",
+                    formatted(metrics.avg_dequeue_latency_ms, "ms"),
+                    formatted(metrics.avg_apply_duration_ms, "ms"),
+                    formatted(metrics.avg_poll_interval_ms, "ms"),
+                );
+            }
+            Ok(())
+        }
     }
 }
 
@@ -350,13 +441,15 @@ fn run_integrated(
     let agent_count = agent_count.clamp(1, 3);
 
     let mut handles = Vec::new();
-    for _ in 0..worker_count {
+    for index in 0..worker_count {
         let queue = queue.clone();
         let running = running.clone();
+        let worker_id = format!("worker-{}", index + 1);
         handles.push(thread::spawn(move || {
             worker::run_worker_with_signal(
                 queue.as_ref(),
                 worker::WorkerConfig {
+                    worker_id: worker_id.clone(),
                     lease_seconds: 300,
                     poll_interval_ms: 500,
                     run_checks: true,
@@ -397,3 +490,4 @@ fn run_integrated(
 
     tui_result
 }
+// Orchestrated update for REQ-TEST-002-2 by agent-3

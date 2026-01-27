@@ -31,6 +31,7 @@ This project defines a governance and execution system for multi-agent software 
 Developer agents do not directly edit the repository. Instead they submit **JSON change requests** with:
 - Target files and operations (add/update/delete)
 - Patch fragments or replacements
+- A `patch_hash` (SHA-256 of the patch text) so the queue can verify every change before applying.
 - Validation steps and expected outcomes
 
 The Merge Queue/Buffer:
@@ -48,9 +49,13 @@ The Merge Queue/Buffer:
 - Validate change requests: `cargo run -- validate-change path/to/change.json`
 - Apply a change request with checks: `cargo run -- apply path/to/change.json --run-checks`
 - Operate the queue: `cargo run -- worker --run-checks --max-attempts 5`, `cargo run -- list-dead-letters`, `cargo run -- mark-applied <id>`
+- Inspect the queue with `cargo run -- list --format json --since <timestamp>` or `cargo run -- list-dead-letters --format json --limit 50`.
+- Observe live telemetry through a new command: `cargo run -- queue-metrics --format json --since 60` exposes throughput, latency, and lease contention stats (omit `--format json` for a quick human-friendly summary).
 - Export the Hyperion skill bundle to another workspace: `cargo run -- export --dest /path/to/target` (writes the `skills/` catalog, `assets/templates/EXPORT_GUIDE.template.md`, and generates an `EXPORT_GUIDE.md` describing how to initialize `hyperion session init`, submit requests, and view the TUI).
   Add `--overwrite` to force replacing an existing export, or rerun without the flag to receive a prompt before overwriting the target directory’s `skills/` catalog.
- The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`).
+ - Run `cargo run -- doctor` to validate schema/index health, checkpoint the WAL, and report how many applied or dead-letter rows have aged beyond the retention window.
+Workers and `hyperion run` now print `[progress]` lines every five seconds that mirror the metrics shown in the TUI’s Metrics panel (throughput/minute, average dequeue/apply latency, poll interval, and lease contention count) so operators can understand queue health before opening the dashboard.
+The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`). The new Metrics panel mirrors the `[progress]` lines printed by `hyperion run`/`worker` so you can see throughput, latency, and lease contention without leaving the console.
 
 ## Example JSON Change Request (Sketch)
 ```json
@@ -61,7 +66,8 @@ The Merge Queue/Buffer:
     {
       "path": "src/module/file.ts",
       "operation": "update",
-      "patch": "@@ -10,7 +10,8 @@\n- old\n+ new"
+      "patch": "@@ -10,7 +10,8 @@\n- old\n+ new",
+      "patch_hash": "<sha256>"
     }
   ],
   "checks": [
@@ -81,3 +87,4 @@ The Merge Queue/Buffer:
 
 ## Contributing
 Contributions should align with the orchestration model and keep tasks scoped, isolated, and testable. For design changes, include a rationale and validation steps.
+// Orchestrated update for REQ-TEST-002-3 by agent-1
