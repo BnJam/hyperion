@@ -1,7 +1,7 @@
 {
   "plan": "/Users/bsmith/bnjam/hyperion/WORKPLAN.md",
-  "plan_hash": "2e99e2fce7e6a365a968d9f03d0211ee554c025a66272c83384197bd4719c695",
-  "generated_at": "2026-01-28T05:22:28Z",
+  "plan_hash": "9ac03512ca84bd3ceca09268f5c6dc5d554e2b0e634fe5ad2e7baa152aa5979c",
+  "generated_at": "2026-01-28T04:48:33Z",
   "completed_tasks": [
     "T001",
     "T002",
@@ -10,8 +10,6 @@
     "T201",
     "T202",
     "T301",
-    "T302",
-    "T401",
-    "T402"
+    "T302"
   ]
 }

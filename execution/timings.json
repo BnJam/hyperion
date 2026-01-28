@@ -1,9 +1,9 @@
 {
   "timings": [
-    {"command": "cargo fmt --check", "started_at": 1769575729, "ended_at": 1769575729},
-    {"command": "cargo clippy --workspace --all-targets --all-features", "started_at": 1769575729, "ended_at": 1769575729},
-    {"command": "cargo test --workspace", "started_at": 1769575729, "ended_at": 1769575729},
-    {"command": "cargo build", "started_at": 1769575729, "ended_at": 1769575730},
-    {"command": "cargo run -- --help", "started_at": 1769575730, "ended_at": 1769575730}
+    {"command": "cargo fmt --check", "started_at": 1769577747, "ended_at": 1769577747},
+    {"command": "cargo clippy --workspace --all-targets --all-features", "started_at": 1769577747, "ended_at": 1769577747},
+    {"command": "cargo test --workspace", "started_at": 1769577747, "ended_at": 1769577748},
+    {"command": "cargo build", "started_at": 1769577748, "ended_at": 1769577748},
+    {"command": "cargo run -- --help", "started_at": 1769577748, "ended_at": 1769577748}
   ]
 }

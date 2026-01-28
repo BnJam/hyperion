@@ -9,112 +9,135 @@ Plan Definition: plans/phase_plan.json
 Phase progress file: execution/phase_progress.json
 
 ## Intent
-Design and verify a deterministic cast-based messaging protocol that merges TechnoCore's resilient queue, WAL telemetry, and Doctor diagnostics with Farcaster's issue->cast communication so Hyperion can audit every task, approval, and merge attempt.
+Advance Hyperion's deterministic cast protocol by hardening queue telemetry, formalizing payload validation, bridging issue-to-merge flows, and documenting the RATATUI observability/governance story.
 
 ## Goals
-- Document the TechnoCore queue resilience story plus Farcaster's cast workflow so Hyperion can borrow proven telemetry, packet tracing, and human-in-the-loop gating.
-- Define a verifiable JSON cast schema, handshake, and audit tokens that capture task IDs, payload digests, approvals, and WAL anchors.
-- Deliver phased work that imprints the cast protocol into Hyperion's change_queue, CLI/TUI messaging surfaces, and operator-facing docs so every cast remains deterministic and replayable.
+- Instrument SqliteQueue leases, WAL telemetry, and Doctor diagnostics so cast health is visible and self-healing.
+- Define a CastPayload schema plus validation hooks so every request includes approvals, TTLs, and guard outputs before hitting the queue.
+- Build the issue-to-merge bridge, RATATUI telemetry dashboards, and governance docs so operators trust and audit every cast lifecycle.
 
 ## Non-Goals
-- Introduce new database backends beyond SQLite/WAL.
-- Automate merges without explicit human approval or documented guard checks.
-- Replace the existing CLI/TUI surfaces with a separate GUI.
+- Add new database backends beyond SQLite/WAL.
+- Bypass human approvals for merge slots.
+- Introduce a separate GUI beyond the existing CLI/TUI surfaces.
 
 ## Scope
-- Hyperion's queue, change request schema, cast messaging protocol, telemetry, and CLI/TUI orchestration agents.
-- Cross-repo learnings from technocore (queue, Doctor, RATATUI diagnostics) and farcaster (issue -> cast -> merge buffer, Jules auto-fix).
+- Hyperion's queue wiring, change request schema, issue bridge, telemetry/doctor guard rails, and CLI/TUI surfaces.
+- Cross-repo learnings from technocore queue resiliency plus Farcaster's cast/merge documentation and guards.
 
 ## Constraints
-- Every cast must be scoped to a deterministic JSON payload that includes task_id, agent_id, approvals, and WAL audit anchors stored in change_queue.
-- Guard scripts (cargo fmt/clippy/test stack) must run before any merge or cast approval, and their outputs are recorded with each cast message.
-- Human approvals, logging, and telemetry remain visible via the CLI/TUI so operators trust the protocol and no cast bypasses observable channels.
+- Every cast must map to a deterministic JSON payload whose audit tokens, WAL anchors, and guard outputs are stored before enqueueing.
+- Guard suites (cargo fmt/clippy/test stack plus the documented checks) must run before any merge or cast approval is recorded.
+- Operators must continue seeing human approvals, telemetry, and logs inside the CLI/TUI so no cast bypasses observability.
 
 ## Plan
-### Phase 0 — Cast Foundations & Inspirations
-Ground Hyperion's cast work structure in TechnoCore's resilient queue story and Farcaster's issue-to-cast communication.
-- [ ] T001: Harvest TechnoCore queue, WAL, and Doctor diagnostics to frame the cast work guardrails.
-  Review technocore/README.md plus the Rust queue/agent crates to understand per-
-  worker leases, WAL telemetry, RATATUI/Doctor diagnostics, and session
-  persistence before encoding them as cast checks.
+### Phase 0 — Queue Telemetry & Lease Hardening
+Make leases, TTLs, dedup windows, and Doctor telemetry actionable so casts never linger unnoticed.
+- [ ] T001: Audit SqliteQueue leases, dedupe, and Doctor instrumentation.
+  Review queue/doctor sources, codify TTL/lease recovery rules, and add WAL audit
+  points so lease histories stay observable.
   Commands:
-  - cat technocore/README.md
-  - rg -n "SqliteQueue" technocore/crates -g '*.rs'
+  - rg -n "leased_until" src/queue.rs
+  - rg -n "DEFAULT_DEDUP_WINDOW" hyperion/src/doctor.rs
+  - rg -n "QueueMetrics" hyperion/src/models.rs
   Verification:
-  - rg -n "TechnoCore queue" hyperion/references/ASI_FRAMEWORK.md
-  - rg -n "cast" hyperion/references/ASI_FRAMEWORK.md
-- [ ] T002: Decode Farcaster's cast workflow and merge queue guardrails.
-  Read farcaster/README.md and the workflows under .github/workflows to catalog
-  how issues become casts, how Jules intervenes, and how CI/merge queues stay
-  synchronous.
+  - cargo fmt --check
+  - rg -n "lease" hyperion/HYPERION.md
+- [ ] T002: Add a lease reclamation watchdog tied to WAL logs.
+  Implement or document a watcher that scans change_queue for expired leases,
+  reclaims them, and logs the events as ChangeQueueLog entries for easier
+  triaging.
   Commands:
-  - cat farcaster/README.md
-  - ls farcaster/.github/workflows
+  - rg -n "watcher" src
+  - cat hyperion/src/watcher.rs
   Verification:
-  - rg -n "Farcaster cast" hyperion/references/ASI_FRAMEWORK.md
+  - rg -n "lease reclaim" hyperion/execution/command_logs/command_*
 
-### Phase 1 — Cast Protocol Design
-Define the deterministic JSON schema and messaging steps that make each cast auditable before it enters the queue.
-- [ ] T101: Compose the cast payload schema and handshake narrative.
-  Draft a JSON schema that captures cast headers (task_id, agent_id,
-  payload_version, ttl, checksum), metadata (origin, approvals, telemetry
-  anchors), and the handshake that ties submissions to WAL audit entries.
+### Phase 1 — Cast Schema & Validation
+Ensure every cast payload carries structured headers, approvals, and guard outputs before the queue touches it.
+- [ ] T101: Define the CastPayload schema and propagate it through models/requests.
+  Add a typed CastPayload (task_id, agent_id, approvals, TTL, telemetry anchors,
+  guard command outputs) in models.rs and ensure request types/serializers reflect
+  it.
   Commands:
-  - cat hyperion/SCHEMAS.md
-  - rg -n "cast" hyperion/src
+  - cat hyperion/src/models.rs
+  - cat hyperion/src/request.rs
   Verification:
-  - rg -n "cast schema" hyperion/HYPERION.md
-- [ ] T102: Document the deterministic messaging stages for cast lifecycle events.
-  Outline the stage transitions (submitted -> cast -> guard-suite -> apply ->
-  archive) and WAL entries so operators can replay each message from submission
-  through approval and delivery.
+  - rg -n "CastPayload" hyperion/src
+  - rg -n "Cast" hyperion/SCHEMAS.md
+- [ ] T102: Enforce payload version/TTL/checksum during validation/enqueue.
+  Extend validator.rs (or doctor.rs) to assert payload version, TTL, and checksum,
+  then call those checks inside SqliteQueue::enqueue so only audited payloads
+  enter the queue.
   Commands:
-  - rg -n "change_queue" hyperion/src
-  - cat technocore/README.md
+  - rg -n "validator" hyperion/src
+  - rg -n "enqueue" hyperion/src/queue.rs
   Verification:
-  - rg -n "cast protocol" hyperion/HYPERION.md
+  - cargo test --workspace
+  - rg -n "validator payload" hyperion/execution/command_logs/command_*
 
-### Phase 2 — Queue & Messaging Integration
-Bring the cast protocol alive inside Hyperion's queue, WAL, and telemetry surfaces so every message is observable and deterministic.
-- [ ] T201: Apply the cast schema to Hyperion's change_queue writer and WAL logging.
-  Update the queue writer to enforce the cast schema, log the JSON payload,
-  approvals, guard commands, and emit telemetry entries that mention the
-  originating cast message.
+### Phase 2 — Issue → Merge Cast Flow
+Ingest Farcaster-style casts, track guard outputs, and buffer them in a merge queue that waits for approvals + CI.
+- [ ] T201: Build the issue bridge that enqueues casts with guard metadata.
+  Wire orchestrator.rs/runner.rs to process Farcaster-style casts, record guard
+  commands/approvals, and enqueue them while preserving the metadata.
   Commands:
-  - rg -n "persist" hyperion/src
-  - rg -n "change_queue" hyperion/src
+  - cat hyperion/src/orchestrator.rs
+  - rg -n "issue" hyperion/src/runner.rs
   Verification:
-  - rg -n "cast queue" hyperion/HYPERION.md
-- [ ] T202: Surface cast telemetry inside the CLI/TUI guard panels.
-  Plan RATATUI panes that display queue depth, cast latency, WAL progress, guard
-  command results, and human approval comments so operators never lose sight of
-  the messaging health.
+  - rg -n "merge queue" hyperion/src
+  - rg -n "issue bridge" hyperion/HARDENING.md
+- [ ] T202: Implement a merge queue buffer + release stub tied to guard suites.
+  Add a buffer in exporter.rs/runner.rs that holds casts until cargo
+  fmt/clippy/test pass plus human approval, logging CI outputs inside
+  ChangeQueueLog for auditability.
+  Commands:
+  - rg -n "export" hyperion/src
+  - rg -n "cargo fmt" hyperion/execution/commands_from_plan.txt
+  Verification:
+  - rg -n "guard run" hyperion/execution/exit_codes.json
+
+### Phase 3 — RATATUI Visibility & Observability
+Surface queue/guard telemetry inside the TUI and emit structured reports for dashboards.
+- [ ] T301: Surface queue metrics + guard history in the RATATUI panels.
+  Update tui.rs/fs_watch.rs to display queue depth, cast latency, WAL progress,
+  guard command results, approvals, and ChangeQueueLog insights.
   Commands:
   - rg -n "ratatui" hyperion/src
-  - cat hyperion/HARDENING.md
+  - cat hyperion/src/tui.rs
   Verification:
-  - rg -n "telemetry" hyperion/HYPERION.md
+  - echo 'TUI snapshot references cast latency, queue depth, guard outcomes'
+- [ ] T302: Emit structured telemetry per run for dashboards to trend.
+  Write queue depth, WAL checkpoint stats, dedup hits, and guard results into
+  execution/verification_report.json on every run so dashboards ingest
+  deterministic telemetry.
+  Commands:
+  - cat hyperion/src/exporter.rs
+  - rg -n "verification_report" execution
+  Verification:
+  - rg -n "queue depth" hyperion/execution/verification_report.json
 
-### Phase 3 — Governance, Testing & Delivery
-Document the cast work structure, add deterministic guard tests, and highlight unresolved decisions so Hyperion operators trust the protocol.
-- [ ] T301: Capture the cast messaging story inside Hyperion docs and references.
-  Update README.md, HYPERION.md, and references/QUESTIONS.md to describe the cast
-  work structure, guard expectations, telemetry knobs, and where human judgment is
-  still required.
+### Phase 4 — Testing, Governance & Playbooks
+Create cast replay fixtures, capture WAL audits, and document governance playbooks for operators.
+- [ ] T401: Expand CI/tests with cast replay fixtures and WAL audits.
+  Export sample payloads from request/models, build fixtures that replay casts,
+  and verify WAL retention plus guard logging during cargo test runs.
+  Commands:
+  - cat hyperion/src/request.rs
+  - cat hyperion/src/models.rs
+  Verification:
+  - cargo test --workspace
+  - rg -n "cast fixture" hyperion/tests
+- [ ] T402: Update docs/playbooks to explain the deterministic cast lifecycle.
+  Refresh README.md, HYPERION.md, references/ASI_FRAMEWORK.md, and
+  references/QUESTIONS.md with the issue bridge story, guard requirements,
+  telemetry expectations, and lingering decisions.
   Commands:
   - cat hyperion/README.md
-  - cat hyperion/HYPERION.md
-  Verification:
-  - rg -n "cast work" hyperion/HYPERION.md
-  - rg -n "deterministic" hyperion/references/QUESTIONS.md
-- [ ] T302: Define verifiable tests and guard scripts that keep casts deterministic.
-  Plan JSON fixtures, WAL audits, and CI guard checks that fetch cast logs, replay
-  their states, and confirm audit fields before each merge slot is advanced.
-  Commands:
-  - cat hyperion/TASKS.md
-  - rg -n "cast" hyperion/src
-  Verification:
   - rg -n "cast" hyperion/references/QUESTIONS.md
+  Verification:
+  - rg -n "deterministic" hyperion/references/QUESTIONS.md
+  - rg -n "cast work" hyperion/HYPERION.md
 
 ## Commands
 - cargo fmt --check

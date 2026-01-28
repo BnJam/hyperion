@@ -1,12 +1,14 @@
 {
   "tasks": [
-    {"id": "T001", "description": "T001: Harvest TechnoCore queue, WAL, and Doctor diagnostics to frame the cast work guardrails.", "status": "pending"},
-    {"id": "T002", "description": "T002: Decode Farcaster's cast workflow and merge queue guardrails.", "status": "pending"},
-    {"id": "T101", "description": "T101: Compose the cast payload schema and handshake narrative.", "status": "pending"},
-    {"id": "T102", "description": "T102: Document the deterministic messaging stages for cast lifecycle events.", "status": "pending"},
-    {"id": "T201", "description": "T201: Apply the cast schema to Hyperion's change_queue writer and WAL logging.", "status": "pending"},
-    {"id": "T202", "description": "T202: Surface cast telemetry inside the CLI/TUI guard panels.", "status": "pending"},
-    {"id": "T301", "description": "T301: Capture the cast messaging story inside Hyperion docs and references.", "status": "pending"},
-    {"id": "T302", "description": "T302: Define verifiable tests and guard scripts that keep casts deterministic.", "status": "pending"}
+    {"id": "T001", "description": "T001: Audit SqliteQueue leases, dedupe, and Doctor instrumentation.", "status": "pending"},
+    {"id": "T002", "description": "T002: Add a lease reclamation watchdog tied to WAL logs.", "status": "pending"},
+    {"id": "T101", "description": "T101: Define the CastPayload schema and propagate it through models/requests.", "status": "pending"},
+    {"id": "T102", "description": "T102: Enforce payload version/TTL/checksum during validation/enqueue.", "status": "pending"},
+    {"id": "T201", "description": "T201: Build the issue bridge that enqueues casts with guard metadata.", "status": "pending"},
+    {"id": "T202", "description": "T202: Implement a merge queue buffer + release stub tied to guard suites.", "status": "pending"},
+    {"id": "T301", "description": "T301: Surface queue metrics + guard history in the RATATUI panels.", "status": "pending"},
+    {"id": "T302", "description": "T302: Emit structured telemetry per run for dashboards to trend.", "status": "pending"},
+    {"id": "T401", "description": "T401: Expand CI/tests with cast replay fixtures and WAL audits.", "status": "pending"},
+    {"id": "T402", "description": "T402: Update docs/playbooks to explain the deterministic cast lifecycle.", "status": "pending"}
   ]
 }

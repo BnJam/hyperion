@@ -1,38 +1,9 @@
- D .skillcraft/REPORT.md
- M HARDENING.md
- M README.md
- M SCHEMAS.md
  M WORKPLAN.md
  M execution/changed_files.json
- M execution/command_logs/command_2.log
- M execution/command_logs/command_3.log
- M execution/command_logs/command_4.log
- M execution/command_logs/command_5.log
  M execution/discovery_log.md
- M execution/exit_codes.json
  M execution/git_status.txt
- M execution/last_error.txt
- M execution/plan_discovery_report.json
- M execution/plan_validation_report.json
+ M execution/librarian_discovery.md
+ M execution/phase_progress.json
  M execution/task_status_summary.json
  M execution/tasks.json
- M execution/timings.json
- M src/apply.rs
- M src/doctor.rs
- M src/main.rs
- M src/models.rs
- M src/queue.rs
- M src/runner.rs
- M src/worker.rs
-?? execution/commands.txt
-?? execution/commands_from_plan.txt
-?? execution/index.log
-?? execution/librarian_discovery.md
-?? execution/next_task_context.json
-?? execution/phase_progress.json
-?? execution/plan_progress.json
-?? execution/plan_progress.json.20260128T024156Z.old
-?? execution/plan_progress.json.20260128T032224Z.old
-?? plans/
-?? references/
-?? scripts/
+ M plans/phase_plan.json
