@@ -4,6 +4,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
+use anyhow::Error;
 use tracing::{info, warn};
 
 use crate::apply;
@@ -127,7 +128,7 @@ pub fn run_worker_with_signal(
                     &record.payload.task_id,
                     "warn",
                     "apply failed",
-                    Some(&json!({"error": err.to_string()})),
+                    Some(&failure_details(&err)),
                 );
                 warn!(task_id = %record.payload.task_id, error = %err, "apply failed");
                 if record.attempts >= config.max_attempts {
@@ -145,7 +146,7 @@ pub fn run_worker_with_signal(
                         &record.payload.task_id,
                         "warn",
                         "checks failed",
-                        Some(&json!({"error": err.to_string()})),
+                        Some(&failure_details(&err)),
                     );
                     warn!(task_id = %record.payload.task_id, error = %err, "checks failed");
                     if record.attempts >= config.max_attempts {
@@ -206,4 +207,34 @@ fn report_progress(queue: &SqliteQueue) -> anyhow::Result<()> {
         metrics.lease_contention_events,
     );
     Ok(())
+}
+
+fn failure_details(err: &Error) -> serde_json::Value {
+    let mut details = json!({ "error": err.to_string() });
+    if let Some(apply_failure) = err.downcast_ref::<apply::ApplyFailure>() {
+        if let Some(map) = details.as_object_mut() {
+            map.insert("apply_stdout".into(), json!(apply_failure.stdout));
+            map.insert("apply_stderr".into(), json!(apply_failure.stderr));
+            map.insert(
+                "patch_preview".into(),
+                json!(excerpt(&apply_failure.patch, 512)),
+            );
+        }
+    }
+    if let Some(check_failure) = err.downcast_ref::<runner::CheckFailure>() {
+        if let Some(map) = details.as_object_mut() {
+            map.insert("check_command".into(), json!(check_failure.command));
+            map.insert("check_stdout".into(), json!(check_failure.stdout));
+            map.insert("check_stderr".into(), json!(check_failure.stderr));
+        }
+    }
+    details
+}
+
+fn excerpt(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        text.to_string()
+    } else {
+        format!("{}…", &text[..max_len])
+    }
 }

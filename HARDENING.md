@@ -4,6 +4,7 @@
 - **SQLite WAL** for concurrent writers and crash-safe durability.
 - **Busy timeouts** to handle contention gracefully.
 - **Synchronous NORMAL** to balance safety and throughput.
+- **Dedup + TTL metadata** tracks `task_id` plus payload hashes so repeated submissions are rejected until their prior entries expire or are swept with the cleanup command.
 
 ## Leases & Retries
 - **Leased dequeue** prevents duplicate work on worker crashes.
@@ -27,13 +28,13 @@
 - **Telemetry CLI** (`hyperion queue-metrics --format json --since 60`) and `[progress]` lines from workers expose throughput/minute, average queue latencies, and lease contention counts so automation and ops scripts can consume the same signals as the TUI.
 - **TUI dashboard** for real-time queue visibility (ratatui).
 - **CLI validation** for schema enforcement during intake.
-- **Diagnostics command:** `hyperion doctor` checkpoints the WAL, verifies schema/index health, and surfaces how many applied/dead-letter rows exceed retention bounds.
+- **Diagnostics command:** `hyperion doctor` checkpoints the WAL, verifies schema/index health, surfaces retention breaches, and now reports dedup hit counts, timestamp skew, WAL checkpoint stats, and the timestamp of the most recent cleanup sweep.
 
 ## Security & Governance
 - **Schema validation** before enqueue.
 - **Access control** for agents that submit change requests.
 - **Approval gates** for high-risk changes.
-- **Retention policy:** TTL/archival helpers (`purge_applied`, `purge_dead_letters`) keep the queue lean and track how many records cross retention thresholds for compliance.
+- **Retention policy:** TTL/archival helpers (`cleanup`, `purge_applied`, `purge_dead_letters`) keep the queue lean, log cleanup sweeps, and track how many records cross retention thresholds for compliance.
 
 ## Disaster Recovery
 - **Backup strategy** for SQLite DB.

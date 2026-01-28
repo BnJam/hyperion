@@ -1,10 +1,10 @@
 {
-  "root": "/Users/bsmith/bnjam/hyperion",
+  "root": "hyperion",
   "searched_roots": [
-    "/Users/bsmith/bnjam/hyperion"
+    "hyperion"
   ],
   "candidates": [
-    "/Users/bsmith/bnjam/hyperion/WORKPLAN.md"
+    "hyperion/WORKPLAN.md"
   ],
-  "selected": "/Users/bsmith/bnjam/hyperion/WORKPLAN.md"
+  "selected": "hyperion/WORKPLAN.md"
 }

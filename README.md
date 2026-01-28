@@ -23,7 +23,7 @@ This project defines a governance and execution system for multi-agent software 
 - **Developer Agents:** Implement targeted changes.
 - **Merge Queue/Buffer:** Applies changes via structured JSON patches and a parallel worker pool that invokes `git apply`.
 - **Agent Harness:** Copilot CLI (model `gpt-5-mini`) behind a trait for easy swapping.
-- **Queue Storage:** SQLite with WAL enabled for durability and concurrent writers.
+- **Queue Storage:** SQLite with WAL enabled for durability, new dedup metadata (task_id + payload_hash), and TTL sanitizers so the queue can detect duplicate submissions and purge out-of-date applied/failed rows.
 - **Queue Logs:** Worker events are persisted as JSON in `change_queue_logs` so audit trails remain centralized.
 - **Schema Catalog:** Documented JSON schemas in `SCHEMAS.md`.
 
@@ -49,11 +49,12 @@ The Merge Queue/Buffer:
 - Validate change requests: `cargo run -- validate-change path/to/change.json`
 - Apply a change request with checks: `cargo run -- apply path/to/change.json --run-checks`
 - Operate the queue: `cargo run -- worker --run-checks --max-attempts 5`, `cargo run -- list-dead-letters`, `cargo run -- mark-applied <id>`
+- Sweep stale queue entries with `cargo run -- cleanup --ttl-seconds <seconds>` (default 7 days); the command deletes applied/failed rows older than the TTL, logs the sweep, and lets you resubmit the same `task_id`/payload hash pair once the stale copy is cleared.
 - Inspect the queue with `cargo run -- list --format json --since <timestamp>` or `cargo run -- list-dead-letters --format json --limit 50`.
 - Observe live telemetry through a new command: `cargo run -- queue-metrics --format json --since 60` exposes throughput, latency, and lease contention stats (omit `--format json` for a quick human-friendly summary).
 - Export the Hyperion skill bundle to another workspace: `cargo run -- export --dest /path/to/target` (writes the `skills/` catalog, `assets/templates/EXPORT_GUIDE.template.md`, and generates an `EXPORT_GUIDE.md` describing how to initialize `hyperion session init`, submit requests, and view the TUI).
   Add `--overwrite` to force replacing an existing export, or rerun without the flag to receive a prompt before overwriting the target directory’s `skills/` catalog.
- - Run `cargo run -- doctor` to validate schema/index health, checkpoint the WAL, and report how many applied or dead-letter rows have aged beyond the retention window.
+- Run `cargo run -- doctor` to validate schema/index health, checkpoint the WAL, and report how many applied or dead-letter rows have aged beyond the retention window; the command now also surfaces dedup hit counts, timestamp skew, WAL checkpoint stats, and the last cleanup sweep timestamp.
 Workers and `hyperion run` now print `[progress]` lines every five seconds that mirror the metrics shown in the TUI’s Metrics panel (throughput/minute, average dequeue/apply latency, poll interval, and lease contention count) so operators can understand queue health before opening the dashboard.
 The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`). The new Metrics panel mirrors the `[progress]` lines printed by `hyperion run`/`worker` so you can see throughput, latency, and lease contention without leaving the console.
 

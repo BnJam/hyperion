@@ -27,7 +27,7 @@ mod worker;
 use crate::agent::AgentHarness;
 use crate::request::DEFAULT_MODEL;
 use models::QueueStatus;
-use queue::SqliteQueue;
+use queue::{SqliteQueue, DEFAULT_APPLIED_RETENTION_SECS};
 use serde_json::to_string_pretty;
 
 #[derive(Parser)]
@@ -145,6 +145,10 @@ enum Commands {
         since: Option<i64>,
         #[arg(long)]
         format: Option<String>,
+    },
+    Cleanup {
+        #[arg(long)]
+        ttl_seconds: Option<i64>,
     },
 }
 
@@ -408,6 +412,14 @@ fn main() -> anyhow::Result<()> {
                     formatted(metrics.avg_poll_interval_ms, "ms"),
                 );
             }
+            Ok(())
+        }
+        Some(Commands::Cleanup { ttl_seconds }) => {
+            let ttl = ttl_seconds.unwrap_or(DEFAULT_APPLIED_RETENTION_SECS).max(1);
+            let deleted = queue.cleanup_stale_records(ttl)?;
+            println!(
+                "Removed {deleted} applied/failed entries older than {ttl} seconds via cleanup."
+            );
             Ok(())
         }
     }

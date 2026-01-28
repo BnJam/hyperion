@@ -1,10 +1,51 @@
-use std::{fs, path::Path, thread};
+use std::{
+    error::Error as StdError,
+    fmt, fs,
+    io::Write,
+    path::Path,
+    process::{Command, Stdio},
+    thread,
+};
 
-use anyhow::Context;
+use anyhow::{Context, Error};
 use diffy::{apply, Patch};
 use tracing::info;
 
 use crate::models::{ChangeOperation, ChangeRequest, OperationKind};
+
+#[derive(Debug)]
+pub struct ApplyFailure {
+    pub patch: String,
+    pub stdout: String,
+    pub stderr: String,
+    source: anyhow::Error,
+}
+
+impl ApplyFailure {
+    fn new<E>(source: E, patch: String, stdout: String, stderr: String) -> Self
+    where
+        E: Into<anyhow::Error>,
+    {
+        Self {
+            source: source.into(),
+            patch,
+            stdout,
+            stderr,
+        }
+    }
+}
+
+impl fmt::Display for ApplyFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "apply failure: {}", self.source)
+    }
+}
+
+impl StdError for ApplyFailure {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(self.source.as_ref())
+    }
+}
 
 pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
     info!(
@@ -35,6 +76,7 @@ pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
 }
 
 fn apply_change_operation(change: ChangeOperation) -> anyhow::Result<()> {
+    run_git_apply_check(&change)?;
     let target = Path::new(&change.path);
     info!(
         path = %change.path,
@@ -62,6 +104,55 @@ fn apply_change_operation(change: ChangeOperation) -> anyhow::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn run_git_apply_check(change: &ChangeOperation) -> anyhow::Result<()> {
+    let patch = change.patch.clone();
+    let mut child = Command::new("git")
+        .arg("apply")
+        .arg("--check")
+        .arg("--whitespace=nowarn")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| {
+            Error::from(ApplyFailure::new(
+                err,
+                patch.clone(),
+                String::new(),
+                String::new(),
+            ))
+        })?;
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin.write_all(patch.as_bytes()).map_err(|err| {
+            Error::from(ApplyFailure::new(
+                err,
+                patch.clone(),
+                String::new(),
+                String::new(),
+            ))
+        })?;
+    }
+    let output = child.wait_with_output().map_err(|err| {
+        Error::from(ApplyFailure::new(
+            err,
+            patch.clone(),
+            String::new(),
+            String::new(),
+        ))
+    })?;
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    if !output.status.success() {
+        return Err(Error::from(ApplyFailure::new(
+            anyhow::anyhow!("git apply --check failed ({})", output.status),
+            patch,
+            stdout,
+            stderr,
+        )));
+    }
     Ok(())
 }
 

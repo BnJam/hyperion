@@ -1,0 +1,6 @@
+2026-01-27T22:06:35Z index.sh added librarian.db to /Users/bsmith/bnjam/hyperion/.gitignore
+\n 2026-01-27T22:06:36Z run anchors=index.sh hash=363 prev_hash=e386665e3f820291800eec2b55698eea3129197c55e446ad740e0b807070b44a anchors_prev=
+0  run anchors= hash= prev_hash= anchors_prev=
+2026-01-27T22:07:35Z index.sh skip gitignore (entry exists)
+\n 2026-01-27T22:07:36Z run anchors=index.sh hash=363 prev_hash=9986bb0c5b01ac9b8b664f75931e666891734b577e7257b4501a765fd2d4b0ce anchors_prev=e386665e3f820291800eec2b55698eea3129197c55e446ad740e0b807070b44a
+363  run anchors= hash= prev_hash= anchors_prev=

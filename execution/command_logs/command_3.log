@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
      Running unittests src/main.rs (target/debug/deps/hyperion-0ac1b5a7042d0f99)
 
 running 2 tests

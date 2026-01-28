@@ -1,15 +1,15 @@
 {
-  "plan": "WORKPLAN.md",
+  "plan": "hyperion/WORKPLAN.md",
   "required_sections": [
     "Intent",
-    " Goals",
-    " Non-Goals",
-    " Scope",
-    " Constraints",
-    " Plan",
-    " Commands",
-    " Validation",
-    " Approval"
+    "Goals",
+    "Non-Goals",
+    "Scope",
+    "Constraints",
+    "Plan",
+    "Commands",
+    "Validation",
+    "Approval"
   ],
   "missing_sections": [
   ],

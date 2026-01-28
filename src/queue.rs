@@ -8,12 +8,17 @@ use anyhow::Context;
 use rusqlite::{
     params, types::Type, Connection, Error, OptionalExtension, Row, TransactionBehavior,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 use crate::models::{
     AgentSession, ChangeQueueLog, ChangeRequest, DeadLetterRecord, FileModification, QueueMetrics,
-    QueueRecord, QueueStatus, StatusCounts,
+    QueueRecord, QueueStatus, StatusCounts, WalCheckpointStats,
 };
+
+pub const DEFAULT_APPLIED_RETENTION_SECS: i64 = 7 * 24 * 60 * 60;
+pub const DEFAULT_DEADLETTER_RETENTION_SECS: i64 = 30 * 24 * 60 * 60;
+pub const DEFAULT_DEDUP_WINDOW_SECS: i64 = 24 * 60 * 60;
 
 pub struct SqliteQueue {
     path: PathBuf,
@@ -36,6 +41,8 @@ impl SqliteQueue {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 status TEXT NOT NULL,
                 payload TEXT NOT NULL,
+                task_id TEXT,
+                payload_hash TEXT,
                 attempts INTEGER NOT NULL DEFAULT 0,
                 last_error TEXT,
                 leased_until INTEGER,
@@ -85,6 +92,8 @@ impl SqliteQueue {
              CREATE INDEX IF NOT EXISTS idx_change_queue_status ON change_queue(status);
              CREATE INDEX IF NOT EXISTS idx_change_queue_status_lease_id ON change_queue(status, leased_until, id);
              CREATE INDEX IF NOT EXISTS idx_change_queue_lease ON change_queue(leased_until);
+             CREATE UNIQUE INDEX IF NOT EXISTS idx_change_queue_task_payload_hash ON change_queue(task_id, payload_hash);
+             CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);
              CREATE INDEX IF NOT EXISTS idx_change_queue_logs_queue_id ON change_queue_logs(queue_id);
              CREATE INDEX IF NOT EXISTS idx_agent_sessions_last_used ON agent_sessions(last_used);
              CREATE INDEX IF NOT EXISTS idx_file_modifications_created_at ON file_modifications(created_at);",
@@ -95,6 +104,8 @@ impl SqliteQueue {
             &conn,
             "updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))",
         )?;
+        Self::try_add_column(&conn, "task_id TEXT")?;
+        Self::try_add_column(&conn, "payload_hash TEXT")?;
         Ok(())
     }
 
@@ -114,12 +125,67 @@ impl SqliteQueue {
         Ok(conn)
     }
 
+    fn change_request_hash(request: &ChangeRequest) -> anyhow::Result<String> {
+        let bytes =
+            serde_json::to_vec(request).context("serialize change request for dedupe hash")?;
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        Ok(format!("{:x}", hasher.finalize()))
+    }
+
+    fn find_live_duplicate(
+        conn: &Connection,
+        task_id: &str,
+        payload_hash: &str,
+    ) -> anyhow::Result<Option<i64>> {
+        let mut stmt = conn.prepare(
+            "SELECT id FROM change_queue WHERE task_id = ?1 AND payload_hash = ?2 AND status IN (?3, ?4) LIMIT 1",
+        )?;
+        let row = stmt
+            .query_row(
+                params![
+                    task_id,
+                    payload_hash,
+                    QueueStatus::Pending.as_str(),
+                    QueueStatus::InProgress.as_str()
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(row)
+    }
+
     pub fn enqueue(&self, request: &ChangeRequest) -> anyhow::Result<i64> {
         let payload = serde_json::to_string(request).context("serialize change request")?;
+        let payload_hash = Self::change_request_hash(request)?;
         let conn = self.connection()?;
+        if let Some(existing_id) =
+            Self::find_live_duplicate(&conn, &request.task_id, &payload_hash)?
+        {
+            let _ = self.log_event(
+                existing_id,
+                &request.task_id,
+                "warn",
+                "duplicate change request",
+                Some(&json!({
+                    "payload_hash": payload_hash,
+                })),
+            );
+            anyhow::bail!(
+                "duplicate change request {} (hash {}) is already in flight",
+                request.task_id,
+                payload_hash
+            );
+        }
         conn.execute(
-            "INSERT INTO change_queue (status, payload, updated_at) VALUES (?1, ?2, ?3)",
-            params![QueueStatus::Pending.as_str(), payload, now_epoch()?],
+            "INSERT INTO change_queue (status, payload, task_id, payload_hash, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                QueueStatus::Pending.as_str(),
+                payload,
+                request.task_id,
+                payload_hash,
+                now_epoch()?
+            ],
         )?;
         Ok(conn.last_insert_rowid())
     }
@@ -263,6 +329,31 @@ impl SqliteQueue {
             params![QueueStatus::Applied.as_str(), now_epoch()?, id],
         )?;
         Ok(())
+    }
+
+    pub fn cleanup_stale_records(&self, ttl_seconds: i64) -> anyhow::Result<usize> {
+        let threshold = now_epoch()? - ttl_seconds;
+        let conn = self.connection()?;
+        let deleted = conn.execute(
+            "DELETE FROM change_queue WHERE status IN (?1, ?2) AND updated_at < ?3",
+            params![
+                QueueStatus::Applied.as_str(),
+                QueueStatus::Failed.as_str(),
+                threshold
+            ],
+        )?;
+        let _ = self.log_event(
+            0,
+            "cleanup",
+            "info",
+            "cleanup_stale_records",
+            Some(&json!({
+                "ttl_seconds": ttl_seconds,
+                "threshold_updated_at": threshold,
+                "deleted_rows": deleted
+            })),
+        );
+        Ok(deleted)
     }
 
     pub fn list(&self, status: QueueStatus) -> anyhow::Result<Vec<QueueRecord>> {
@@ -467,6 +558,60 @@ impl SqliteQueue {
         Ok(records)
     }
 
+    pub fn count_dedup_hits_since(&self, since: i64) -> anyhow::Result<i64> {
+        let conn = self.connection()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM change_queue_logs WHERE message = 'duplicate change request' AND created_at >= ?1",
+            params![since],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    pub fn last_cleanup_timestamp(&self) -> anyhow::Result<Option<i64>> {
+        let conn = self.connection()?;
+        let row = conn
+            .query_row(
+                "SELECT MAX(created_at) FROM change_queue_logs WHERE message = 'cleanup'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(row)
+    }
+
+    pub fn max_updated_timestamp(&self) -> anyhow::Result<Option<i64>> {
+        let conn = self.connection()?;
+        let row = conn
+            .query_row("SELECT MAX(updated_at) FROM change_queue", [], |row| {
+                row.get(0)
+            })
+            .optional()?;
+        Ok(row)
+    }
+
+    pub fn wal_checkpoint_status(&self) -> anyhow::Result<WalCheckpointStats> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare("PRAGMA wal_checkpoint(PASSIVE);")?;
+        let mut rows = stmt.query([])?;
+        if let Some(row) = rows.next()? {
+            let checkpointed: i64 = row.get(0)?;
+            let log: i64 = row.get(1)?;
+            let wal: i64 = row.get(2)?;
+            Ok(WalCheckpointStats {
+                checkpointed,
+                log,
+                wal,
+            })
+        } else {
+            Ok(WalCheckpointStats {
+                checkpointed: 0,
+                log: 0,
+                wal: 0,
+            })
+        }
+    }
+
     pub fn queue_metrics(&self, window_seconds: Option<i64>) -> anyhow::Result<QueueMetrics> {
         let window = window_seconds.unwrap_or(60).max(1);
         let now = now_epoch()?;
@@ -560,6 +705,16 @@ impl SqliteQueue {
             None
         };
 
+        let stale_applied_rows = self.count_applied_older_than(DEFAULT_APPLIED_RETENTION_SECS)?;
+        let stale_dead_letter_rows =
+            self.count_dead_letters_older_than(DEFAULT_DEADLETTER_RETENTION_SECS)?;
+        let dedup_since = now.saturating_sub(DEFAULT_DEDUP_WINDOW_SECS);
+        let dedup_hits = self.count_dedup_hits_since(dedup_since)?;
+        let last_cleanup = self.last_cleanup_timestamp()?;
+        let max_updated = self.max_updated_timestamp()?;
+        let timestamp_skew = max_updated.map(|value| now - value);
+        let wal_checkpoint_stats = self.wal_checkpoint_status().ok();
+
         Ok(QueueMetrics {
             window_seconds: window,
             status_counts: StatusCounts {
@@ -574,6 +729,12 @@ impl SqliteQueue {
             throughput_per_minute,
             lease_contention_events,
             timestamp: now,
+            stale_applied_rows: Some(stale_applied_rows),
+            stale_dead_letter_rows: Some(stale_dead_letter_rows),
+            dedup_hits: Some(dedup_hits),
+            last_cleanup_timestamp: last_cleanup,
+            wal_checkpoint_stats,
+            timestamp_skew_secs: timestamp_skew,
         })
     }
 

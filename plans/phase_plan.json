@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "intent": "Design and verify a deterministic cast-based messaging protocol that merges TechnoCore's resilient queue, WAL telemetry, and Doctor diagnostics with Farcaster's issue->cast communication so Hyperion can audit every task, approval, and merge attempt.",
+    "goals": [
+      "Document the TechnoCore queue resilience story plus Farcaster's cast workflow so Hyperion can borrow proven telemetry, packet tracing, and human-in-the-loop gating.",
+      "Define a verifiable JSON cast schema, handshake, and audit tokens that capture task IDs, payload digests, approvals, and WAL anchors.",
+      "Deliver phased work that imprints the cast protocol into Hyperion's change_queue, CLI/TUI messaging surfaces, and operator-facing docs so every cast remains deterministic and replayable."
+    ],
+    "non_goals": [
+      "Introduce new database backends beyond SQLite/WAL.",
+      "Automate merges without explicit human approval or documented guard checks.",
+      "Replace the existing CLI/TUI surfaces with a separate GUI."
+    ],
+    "scope": [
+      "Hyperion's queue, change request schema, cast messaging protocol, telemetry, and CLI/TUI orchestration agents.",
+      "Cross-repo learnings from technocore (queue, Doctor, RATATUI diagnostics) and farcaster (issue -> cast -> merge buffer, Jules auto-fix)."
+    ],
+    "constraints": [
+      "Every cast must be scoped to a deterministic JSON payload that includes task_id, agent_id, approvals, and WAL audit anchors stored in change_queue.",
+      "Guard scripts (cargo fmt/clippy/test stack) must run before any merge or cast approval, and their outputs are recorded with each cast message.",
+      "Human approvals, logging, and telemetry remain visible via the CLI/TUI so operators trust the protocol and no cast bypasses observable channels."
+    ],
+    "approval_pattern": "^Approved:[[:space:]]+yes$",
+    "required_sections": "Intent,Goals,Non-Goals,Scope,Constraints,Plan,Commands,Validation,Approval",
+    "validation_policy": "Guard scripts + deterministic cast/messaging audits",
+    "validation_steps": [
+      "../developer/scripts/validate-plan.sh --plan ./WORKPLAN.md --required \"Intent,Goals,Non-Goals,Scope,Constraints,Plan,Commands,Validation,Approval\" --approval-pattern \"^Approved:[[:space:]]+yes$\"",
+      "../developer/scripts/check-workspace.sh --root . --fail-on-dirty",
+      "../developer/scripts/check-anti-patterns.sh --plan ./WORKPLAN.md --root .",
+      "../developer/scripts/librarian-discovery.sh --workspace . --db /Users/bsmith/thelibrary/hyperion-be573d94/librarian.db --plan WORKPLAN.md"
+    ],
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy --workspace --all-targets --all-features",
+      "cargo test --workspace",
+      "cargo build",
+      "cargo run -- --help"
+    ],
+    "approval": {
+      "Approved": "yes",
+      "Approved by": "bsmith",
+      "Approved on": "2026-01-28"
+    }
+  },
+  "phases": [
+    {
+      "name": "Phase 0 — Cast Foundations & Inspirations",
+      "summary": "Ground Hyperion's cast work structure in TechnoCore's resilient queue story and Farcaster's issue-to-cast communication.",
+      "tasks": [
+        {
+          "id": "T001",
+          "summary": "Harvest TechnoCore queue, WAL, and Doctor diagnostics to frame the cast work guardrails.",
+          "description": "Review technocore/README.md plus the Rust queue/agent crates to understand per-worker leases, WAL telemetry, RATATUI/Doctor diagnostics, and session persistence before encoding them as cast checks.",
+          "commands": [
+            "cat technocore/README.md",
+            "rg -n \"SqliteQueue\" technocore/crates -g '*.rs'"
+          ],
+          "verification": [
+            "rg -n \"TechnoCore queue\" hyperion/references/ASI_FRAMEWORK.md",
+            "rg -n \"cast\" hyperion/references/ASI_FRAMEWORK.md"
+          ]
+        },
+        {
+          "id": "T002",
+          "summary": "Decode Farcaster's cast workflow and merge queue guardrails.",
+          "description": "Read farcaster/README.md and the workflows under .github/workflows to catalog how issues become casts, how Jules intervenes, and how CI/merge queues stay synchronous.",
+          "commands": [
+            "cat farcaster/README.md",
+            "ls farcaster/.github/workflows"
+          ],
+          "verification": [
+            "rg -n \"Farcaster cast\" hyperion/references/ASI_FRAMEWORK.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 1 — Cast Protocol Design",
+      "summary": "Define the deterministic JSON schema and messaging steps that make each cast auditable before it enters the queue.",
+      "tasks": [
+        {
+          "id": "T101",
+          "summary": "Compose the cast payload schema and handshake narrative.",
+          "description": "Draft a JSON schema that captures cast headers (task_id, agent_id, payload_version, ttl, checksum), metadata (origin, approvals, telemetry anchors), and the handshake that ties submissions to WAL audit entries.",
+          "commands": [
+            "cat hyperion/SCHEMAS.md",
+            "rg -n \"cast\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast schema\" hyperion/HYPERION.md"
+          ]
+        },
+        {
+          "id": "T102",
+          "summary": "Document the deterministic messaging stages for cast lifecycle events.",
+          "description": "Outline the stage transitions (submitted -> cast -> guard-suite -> apply -> archive) and WAL entries so operators can replay each message from submission through approval and delivery.",
+          "commands": [
+            "rg -n \"change_queue\" hyperion/src",
+            "cat technocore/README.md"
+          ],
+          "verification": [
+            "rg -n \"cast protocol\" hyperion/HYPERION.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 — Queue & Messaging Integration",
+      "summary": "Bring the cast protocol alive inside Hyperion's queue, WAL, and telemetry surfaces so every message is observable and deterministic.",
+      "tasks": [
+        {
+          "id": "T201",
+          "summary": "Apply the cast schema to Hyperion's change_queue writer and WAL logging.",
+          "description": "Update the queue writer to enforce the cast schema, log the JSON payload, approvals, guard commands, and emit telemetry entries that mention the originating cast message.",
+          "commands": [
+            "rg -n \"persist\" hyperion/src",
+            "rg -n \"change_queue\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast queue\" hyperion/HYPERION.md"
+          ]
+        },
+        {
+          "id": "T202",
+          "summary": "Surface cast telemetry inside the CLI/TUI guard panels.",
+          "description": "Plan RATATUI panes that display queue depth, cast latency, WAL progress, guard command results, and human approval comments so operators never lose sight of the messaging health.",
+          "commands": [
+            "rg -n \"ratatui\" hyperion/src",
+            "cat hyperion/HARDENING.md"
+          ],
+          "verification": [
+            "rg -n \"telemetry\" hyperion/HYPERION.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 — Governance, Testing & Delivery",
+      "summary": "Document the cast work structure, add deterministic guard tests, and highlight unresolved decisions so Hyperion operators trust the protocol.",
+      "tasks": [
+        {
+          "id": "T301",
+          "summary": "Capture the cast messaging story inside Hyperion docs and references.",
+          "description": "Update README.md, HYPERION.md, and references/QUESTIONS.md to describe the cast work structure, guard expectations, telemetry knobs, and where human judgment is still required.",
+          "commands": [
+            "cat hyperion/README.md",
+            "cat hyperion/HYPERION.md"
+          ],
+          "verification": [
+            "rg -n \"cast work\" hyperion/HYPERION.md",
+            "rg -n \"deterministic\" hyperion/references/QUESTIONS.md"
+          ]
+        },
+        {
+          "id": "T302",
+          "summary": "Define verifiable tests and guard scripts that keep casts deterministic.",
+          "description": "Plan JSON fixtures, WAL audits, and CI guard checks that fetch cast logs, replay their states, and confirm audit fields before each merge slot is advanced.",
+          "commands": [
+            "cat hyperion/TASKS.md",
+            "rg -n \"cast\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast\" hyperion/references/QUESTIONS.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -147,6 +147,19 @@ pub struct QueueMetrics {
     pub throughput_per_minute: Option<f64>,
     pub lease_contention_events: usize,
     pub timestamp: i64,
+    pub stale_applied_rows: Option<i64>,
+    pub stale_dead_letter_rows: Option<i64>,
+    pub dedup_hits: Option<i64>,
+    pub last_cleanup_timestamp: Option<i64>,
+    pub wal_checkpoint_stats: Option<WalCheckpointStats>,
+    pub timestamp_skew_secs: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalCheckpointStats {
+    pub checkpointed: i64,
+    pub log: i64,
+    pub wal: i64,
 }
 
 impl Default for QueueMetrics {
@@ -160,6 +173,12 @@ impl Default for QueueMetrics {
             throughput_per_minute: None,
             lease_contention_events: 0,
             timestamp: 0,
+            stale_applied_rows: None,
+            stale_dead_letter_rows: None,
+            dedup_hits: None,
+            last_cleanup_timestamp: None,
+            wal_checkpoint_stats: None,
+            timestamp_skew_secs: None,
         }
     }
 }

@@ -86,7 +86,17 @@ Provides a telemetry snapshot (`hyperion queue-metrics --format json`) that mirr
   "avg_poll_interval_ms": 500.0,
   "throughput_per_minute": 18.0,
   "lease_contention_events": 0,
-  "timestamp": 1700000000
+  "timestamp": 1700000000,
+  "stale_applied_rows": 3,
+  "stale_dead_letter_rows": 1,
+  "dedup_hits": 2,
+  "last_cleanup_timestamp": 1700000500,
+  "wal_checkpoint_stats": {
+    "checkpointed": 123,
+    "log": 456,
+    "wal": 8
+  },
+  "timestamp_skew_secs": 5
 }
 ```
 
@@ -95,3 +105,7 @@ Provides a telemetry snapshot (`hyperion queue-metrics --format json`) that mirr
 - Latency/progress fields are optional and `null` when no samples exist.
 - `throughput_per_minute` normalizes the number of applied change requests into a per-minute rate.
 - `lease_contention_events` counts dequeue metrics where `dequeue_latency_ms` exceeded `poll_interval_ms`, indicating workers were waiting for a lease.
+- `stale_applied_rows` and `stale_dead_letter_rows` describe how many applied or dead-letter entries breached their TTLs.
+- `dedup_hits` reports how many duplicate `task_id` + payload hash combinations were rejected during the sliding dedup window, and `last_cleanup_timestamp` records when the cleanup sweep most recently ran.
+- `wal_checkpoint_stats` mirrors `PRAGMA wal_checkpoint(PASSIVE)` (checkpointed/log/wal pages) so operations can detect WAL pressure without peeking at the file.
+- `timestamp_skew_secs` equals `now - MAX(updated_at)` and highlights when queue updates stopped progressing.

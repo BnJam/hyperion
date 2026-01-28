@@ -1,0 +1,2 @@
+- python3 scripts/generate_plan.py --definition plans/phase_plan.json --output WORKPLAN.md --progress execution/phase_progress.json
+- ../developer/scripts/workplan-helper.sh ensure-plan --plan ./WORKPLAN.md --progress execution/phase_progress.json

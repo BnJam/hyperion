@@ -1,0 +1,142 @@
+{
+  "plan_definition": "plans/phase_plan.json",
+  "plan_path": "/Users/bsmith/bnjam/hyperion/WORKPLAN.md",
+  "phase_index": -1,
+  "task_index": -1,
+  "phases": [
+    {
+      "name": "Phase 0 \u2014 Cast Foundations & Inspirations",
+      "summary": "Ground Hyperion's cast work structure in TechnoCore's resilient queue story and Farcaster's issue-to-cast communication.",
+      "tasks": [
+        {
+          "id": "T001",
+          "summary": "Harvest TechnoCore queue, WAL, and Doctor diagnostics to frame the cast work guardrails.",
+          "description": "Review technocore/README.md plus the Rust queue/agent crates to understand per-worker leases, WAL telemetry, RATATUI/Doctor diagnostics, and session persistence before encoding them as cast checks.",
+          "commands": [
+            "cat technocore/README.md",
+            "rg -n \"SqliteQueue\" technocore/crates -g '*.rs'"
+          ],
+          "verification": [
+            "rg -n \"TechnoCore queue\" hyperion/references/ASI_FRAMEWORK.md",
+            "rg -n \"cast\" hyperion/references/ASI_FRAMEWORK.md"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T002",
+          "summary": "Decode Farcaster's cast workflow and merge queue guardrails.",
+          "description": "Read farcaster/README.md and the workflows under .github/workflows to catalog how issues become casts, how Jules intervenes, and how CI/merge queues stay synchronous.",
+          "commands": [
+            "cat farcaster/README.md",
+            "ls farcaster/.github/workflows"
+          ],
+          "verification": [
+            "rg -n \"Farcaster cast\" hyperion/references/ASI_FRAMEWORK.md"
+          ],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Phase 1 \u2014 Cast Protocol Design",
+      "summary": "Define the deterministic JSON schema and messaging steps that make each cast auditable before it enters the queue.",
+      "tasks": [
+        {
+          "id": "T101",
+          "summary": "Compose the cast payload schema and handshake narrative.",
+          "description": "Draft a JSON schema that captures cast headers (task_id, agent_id, payload_version, ttl, checksum), metadata (origin, approvals, telemetry anchors), and the handshake that ties submissions to WAL audit entries.",
+          "commands": [
+            "cat hyperion/SCHEMAS.md",
+            "rg -n \"cast\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast schema\" hyperion/HYPERION.md"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T102",
+          "summary": "Document the deterministic messaging stages for cast lifecycle events.",
+          "description": "Outline the stage transitions (submitted -> cast -> guard-suite -> apply -> archive) and WAL entries so operators can replay each message from submission through approval and delivery.",
+          "commands": [
+            "rg -n \"change_queue\" hyperion/src",
+            "cat technocore/README.md"
+          ],
+          "verification": [
+            "rg -n \"cast protocol\" hyperion/HYPERION.md"
+          ],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 \u2014 Queue & Messaging Integration",
+      "summary": "Bring the cast protocol alive inside Hyperion's queue, WAL, and telemetry surfaces so every message is observable and deterministic.",
+      "tasks": [
+        {
+          "id": "T201",
+          "summary": "Apply the cast schema to Hyperion's change_queue writer and WAL logging.",
+          "description": "Update the queue writer to enforce the cast schema, log the JSON payload, approvals, guard commands, and emit telemetry entries that mention the originating cast message.",
+          "commands": [
+            "rg -n \"persist\" hyperion/src",
+            "rg -n \"change_queue\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast queue\" hyperion/HYPERION.md"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T202",
+          "summary": "Surface cast telemetry inside the CLI/TUI guard panels.",
+          "description": "Plan RATATUI panes that display queue depth, cast latency, WAL progress, guard command results, and human approval comments so operators never lose sight of the messaging health.",
+          "commands": [
+            "rg -n \"ratatui\" hyperion/src",
+            "cat hyperion/HARDENING.md"
+          ],
+          "verification": [
+            "rg -n \"telemetry\" hyperion/HYPERION.md"
+          ],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 \u2014 Governance, Testing & Delivery",
+      "summary": "Document the cast work structure, add deterministic guard tests, and highlight unresolved decisions so Hyperion operators trust the protocol.",
+      "tasks": [
+        {
+          "id": "T301",
+          "summary": "Capture the cast messaging story inside Hyperion docs and references.",
+          "description": "Update README.md, HYPERION.md, and references/QUESTIONS.md to describe the cast work structure, guard expectations, telemetry knobs, and where human judgment is still required.",
+          "commands": [
+            "cat hyperion/README.md",
+            "cat hyperion/HYPERION.md"
+          ],
+          "verification": [
+            "rg -n \"cast work\" hyperion/HYPERION.md",
+            "rg -n \"deterministic\" hyperion/references/QUESTIONS.md"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T302",
+          "summary": "Define verifiable tests and guard scripts that keep casts deterministic.",
+          "description": "Plan JSON fixtures, WAL audits, and CI guard checks that fetch cast logs, replay their states, and confirm audit fields before each merge slot is advanced.",
+          "commands": [
+            "cat hyperion/TASKS.md",
+            "rg -n \"cast\" hyperion/src"
+          ],
+          "verification": [
+            "rg -n \"cast\" hyperion/references/QUESTIONS.md"
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "last_updated": {
+    "phase": 3,
+    "task": 1
+  }
+}

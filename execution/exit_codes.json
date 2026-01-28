@@ -1,7 +1,9 @@
 {
   "results": [
-    {"index": 1, "command": "cargo fmt", "exit_code": 0, "workdir": ".", "timeout_seconds": ""},
-    {"index": 2, "command": "cargo clippy --workspace --all-targets --all-features", "exit_code": 0, "workdir": ".", "timeout_seconds": ""},
-    {"index": 3, "command": "cargo test --workspace", "exit_code": 0, "workdir": ".", "timeout_seconds": ""}
+    {"index": 1, "command": "cargo fmt --check", "exit_code": 0, "workdir": "hyperion", "timeout_seconds": ""},
+    {"index": 2, "command": "cargo clippy --workspace --all-targets --all-features", "exit_code": 0, "workdir": "hyperion", "timeout_seconds": ""},
+    {"index": 3, "command": "cargo test --workspace", "exit_code": 0, "workdir": "hyperion", "timeout_seconds": ""},
+    {"index": 4, "command": "cargo build", "exit_code": 0, "workdir": "hyperion", "timeout_seconds": ""},
+    {"index": 5, "command": "cargo run -- --help", "exit_code": 0, "workdir": "hyperion", "timeout_seconds": ""}
   ]
 }
