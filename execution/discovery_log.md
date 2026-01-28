@@ -94,3 +94,12 @@
 - Librarian skill referenced to keep discovery token-efficient.
 - Discovery note references grepit/grape search habits for following the guard.
 - Discovery note references code-optimizer inspired extraction to keep context narrow.
+
+### Librarian discovery update 2026-01-28T05:37:00Z
+- Captured 5 anchor-dense files with min count 2.
+- Chunk preview size 4, max chunks 2.
+- Highlighted anchors for plan file: WORKPLAN.md.
+- Summary written to /Users/bsmith/bnjam/hyperion/execution/librarian_discovery.md
+- Librarian skill referenced to keep discovery token-efficient.
+- Discovery note references grepit/grape search habits for following the guard.
+- Discovery note references code-optimizer inspired extraction to keep context narrow.

@@ -172,10 +172,76 @@
             "status": "completed"
           }
         ]
+      },
+      {
+        "name": "Phase 5 \u2014 AI Agent Integration",
+        "summary": "Introduce an AI agent harness that produces TaskRequest/ChangeRequest payloads and ensures every cast is approved before enqueue.",
+        "tasks": [
+          {
+            "id": "T501",
+            "summary": "Define agent harness responsibilities and validation hooks.",
+            "description": "Clarify how the AI agent should gather intent, generate TaskRequest payloads, validate against the schemas, and capture approval metadata before hitting the orchestrator.",
+            "commands": [
+              "rg -n \"AgentHarness\" hyperion/src",
+              "cat hyperion/src/agent.rs"
+            ],
+            "verification": [
+              "rg -n \"agent harness\" hyperion/HYPERION.md"
+            ],
+            "status": "completed"
+          },
+          {
+            "id": "T502",
+            "summary": "Wire the agent into the orchestrator/request path.",
+            "description": "Update orchestrator.rs/request.rs to accept AI-produced TaskRequest JSON, translate it into ChangeRequests, and submit them via cargo run -- enqueue while recording guard outputs.",
+            "commands": [
+              "cat hyperion/src/request.rs",
+              "cat hyperion/src/orchestrator.rs"
+            ],
+            "verification": [
+              "rg -n \"TaskRequest\" hyperion/src",
+              "rg -n \"change request\" hyperion/execution/command_logs/command_*"
+            ],
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "name": "Phase 6 \u2014 Agent Monitoring & Feedback",
+        "summary": "Track agent outcomes, approvals, and telemetry so operators trust the automation.",
+        "tasks": [
+          {
+            "id": "T601",
+            "summary": "Emit telemetry that correlates agent requests with guard runs.",
+            "description": "Push agent-generated metrics (requests/sec, approval latency, guard success rate) into execution/verification_report.json and mirror them in the TUI metrics panel.",
+            "commands": [
+              "rg -n \"QueueMetrics\" hyperion/src/models.rs",
+              "cat hyperion/execution/verification_report.json"
+            ],
+            "verification": [
+              "rg -n \"agent\" hyperion/execution/verification_report.json"
+            ],
+            "status": "completed"
+          },
+          {
+            "id": "T602",
+            "summary": "Document the agent workflow plus outstanding decisions.",
+            "description": "Refresh README.md, HYPERION.md, references/ASI_FRAMEWORK.md, and references/QUESTIONS.md with the agent automation story, guard requirements, and any unresolved governance questions.",
+            "commands": [
+              "cat hyperion/README.md",
+              "cat hyperion/HYPERION.md"
+            ],
+            "verification": [
+              "rg -n \"agent harness\" hyperion/references/ASI_FRAMEWORK.md",
+              "rg -n \"approval\" hyperion/references/QUESTIONS.md"
+            ],
+            "status": "completed"
+          }
+        ]
       }
     ],
     "last_updated": {
-      "phase": 4,
+      "phase": 6,
       "task": 1
     }
   }

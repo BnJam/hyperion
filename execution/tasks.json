@@ -9,6 +9,10 @@
     {"id": "T301", "description": "T301: Surface queue metrics + guard history in the RATATUI panels.", "status": "pending"},
     {"id": "T302", "description": "T302: Emit structured telemetry per run for dashboards to trend.", "status": "pending"},
     {"id": "T401", "description": "T401: Expand CI/tests with cast replay fixtures and WAL audits.", "status": "pending"},
-    {"id": "T402", "description": "T402: Update docs/playbooks to explain the deterministic cast lifecycle.", "status": "pending"}
+    {"id": "T402", "description": "T402: Update docs/playbooks to explain the deterministic cast lifecycle.", "status": "pending"},
+    {"id": "T501", "description": "T501: Define agent harness responsibilities and validation hooks.", "status": "pending"},
+    {"id": "T502", "description": "T502: Wire the agent into the orchestrator/request path.", "status": "pending"},
+    {"id": "T601", "description": "T601: Emit telemetry that correlates agent requests with guard runs.", "status": "pending"},
+    {"id": "T602", "description": "T602: Document the agent workflow plus outstanding decisions.", "status": "pending"}
   ]
 }

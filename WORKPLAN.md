@@ -15,6 +15,7 @@ Advance Hyperion's deterministic cast protocol by hardening queue telemetry, for
 - Instrument SqliteQueue leases, WAL telemetry, and Doctor diagnostics so cast health is visible and self-healing.
 - Define a CastPayload schema plus validation hooks so every request includes approvals, TTLs, and guard outputs before hitting the queue.
 - Build the issue-to-merge bridge, RATATUI telemetry dashboards, and governance docs so operators trust and audit every cast lifecycle.
+- Integrate a dedicated AI agent harness that generates TaskRequest/ChangeRequest payloads and automates submission through the orchestrator while respecting guard suites.
 
 ## Non-Goals
 - Add new database backends beyond SQLite/WAL.
@@ -138,6 +139,50 @@ Create cast replay fixtures, capture WAL audits, and document governance playboo
   Verification:
   - rg -n "deterministic" hyperion/references/QUESTIONS.md
   - rg -n "cast work" hyperion/HYPERION.md
+
+### Phase 5 — AI Agent Integration
+Introduce an AI agent harness that produces TaskRequest/ChangeRequest payloads and ensures every cast is approved before enqueue.
+- [ ] T501: Define agent harness responsibilities and validation hooks.
+  Clarify how the AI agent should gather intent, generate TaskRequest payloads,
+  validate against the schemas, and capture approval metadata before hitting the
+  orchestrator.
+  Commands:
+  - rg -n "AgentHarness" hyperion/src
+  - cat hyperion/src/agent.rs
+  Verification:
+  - rg -n "agent harness" hyperion/HYPERION.md
+- [ ] T502: Wire the agent into the orchestrator/request path.
+  Update orchestrator.rs/request.rs to accept AI-produced TaskRequest JSON,
+  translate it into ChangeRequests, and submit them via cargo run -- enqueue while
+  recording guard outputs.
+  Commands:
+  - cat hyperion/src/request.rs
+  - cat hyperion/src/orchestrator.rs
+  Verification:
+  - rg -n "TaskRequest" hyperion/src
+  - rg -n "change request" hyperion/execution/command_logs/command_*
+
+### Phase 6 — Agent Monitoring & Feedback
+Track agent outcomes, approvals, and telemetry so operators trust the automation.
+- [ ] T601: Emit telemetry that correlates agent requests with guard runs.
+  Push agent-generated metrics (requests/sec, approval latency, guard success
+  rate) into execution/verification_report.json and mirror them in the TUI metrics
+  panel.
+  Commands:
+  - rg -n "QueueMetrics" hyperion/src/models.rs
+  - cat hyperion/execution/verification_report.json
+  Verification:
+  - rg -n "agent" hyperion/execution/verification_report.json
+- [ ] T602: Document the agent workflow plus outstanding decisions.
+  Refresh README.md, HYPERION.md, references/ASI_FRAMEWORK.md, and
+  references/QUESTIONS.md with the agent automation story, guard requirements, and
+  any unresolved governance questions.
+  Commands:
+  - cat hyperion/README.md
+  - cat hyperion/HYPERION.md
+  Verification:
+  - rg -n "agent harness" hyperion/references/ASI_FRAMEWORK.md
+  - rg -n "approval" hyperion/references/QUESTIONS.md
 
 ## Commands
 - cargo fmt --check
