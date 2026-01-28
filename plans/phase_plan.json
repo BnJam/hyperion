@@ -200,8 +200,7 @@
           ]
         }
       ]
-    }
-    ,
+    },
     {
       "name": "Phase 5 — AI Agent Integration",
       "summary": "Introduce an AI agent harness that produces TaskRequest/ChangeRequest payloads and ensures every cast is approved before enqueue.",
@@ -260,6 +259,140 @@
           "verification": [
             "rg -n \"agent harness\" hyperion/references/ASI_FRAMEWORK.md",
             "rg -n \"approval\" hyperion/references/QUESTIONS.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 7 — Cast Builder & Agent Export",
+      "summary": "Add a human-in-the-loop REPL that finalizes casts before Copilot ingestion and ensure exported skills reflect the structured guidance flow.",
+      "tasks": [
+        {
+          "id": "T701",
+          "summary": "Design the cast-builder REPL/subcommand that negotiates intent + approvals and writes cast JSON for Copilot agents.",
+          "description": "Implement a `hyperion cast` (or exported-skill) REPL that records the conversation, collects AssignmentMetadata (intent, complexity, sample diff, telemetry anchors, approvals), and writes the approved phase/task JSON into `taskjson/` so Copilot agents ingest a deterministic payload.",
+          "commands": [
+            "cat src/request.rs",
+            "rg -n \"HYPERION_AGENT\" src/request.rs",
+            "rg -n \"CopilotHarness\" src/agent.rs"
+          ],
+          "verification": [
+            "rg -n \"cast-builder\" README.md",
+            "cat execution/next_task_context.json | rg -n \"intent\""
+          ]
+        },
+        {
+          "id": "T702",
+          "summary": "Ship an exportable skill that orchestrates the REPL and cast submission into Copilot agents.",
+          "description": "Create a `skills/cast-builder` (or similar) directory with a SKILL manifest that mimics the workplan skill scaffolding so agentic operators know which scripts to run, how progress is tracked, and how to export the cast JSON into the queue.",
+          "commands": [
+            "ls skills/workplan",
+            "cat skills/workplan/SKILL.md"
+          ],
+          "verification": [
+            "rg -n \"cast-builder\" skills/*/SKILL.md",
+            "rg -n \"agent harness\" README.md"
+          ]
+        }
+      ]
+    }
+    ,
+    {
+      "name": "Phase 8 — TUI Visibility for Cast Builder",
+      "summary": "Show the new cast-builder lifecycle and export skill state inside the TUI so operators know when casts are finalized and exported.",
+      "tasks": [
+        {
+          "id": "T801",
+          "summary": "Add a TUI panel that highlights the cast-builder export status and next-task context.",
+          "description": "Extend `src/tui.rs` to render the latest cast-builder assignment intent/complexity plus the export skill status using the `execution/next_task_context.json` data, ensuring operators can see when a cast is ready for Copilot agents.",
+          "commands": [
+            "rg -n \"next_task_context\" src/tui.rs",
+            "cat execution/next_task_context.json"
+          ],
+          "verification": [
+            "Run `cargo run -- queue-metrics --format json` and confirm the new cast-builder fields appear",
+            "TUI screenshot or log entry referencing cast-builder status"
+          ]
+        },
+        {
+          "id": "T802",
+          "summary": "Document the TUI changes plus how the exported skill surfaces status in the dashboard.",
+          "description": "Update README.md and HYPERION.md (or a dedicated docs file) so you know which TUI panes show cast-builder telemetry, what the statuses mean, and how to correlate them with the exported skill/plan tracker.",
+          "commands": [
+            "cat README.md",
+            "rg -n \"cast-builder\" HYPERION.md"
+          ],
+          "verification": [
+            "rg -n \"cast-builder\" README.md",
+            "rg -n \"TUI\" HYPERION.md"
+          ]
+        }
+      ]
+    }
+    ,
+    {
+      "name": "Phase 9 — Cast Skill Distribution",
+      "summary": "Package the cast-builder experience as a reusable skill and exporting bundle so other operator agents can reuse the workflow.",
+      "tasks": [
+        {
+          "id": "T901",
+          "summary": "Document and test the `skills/cast-builder` manifest plus the cast-builder helper.",
+          "description": "Ensure `skills/cast-builder/SKILL.md` references `scripts/cast_builder.sh` and explains how to run the REPL so imported skills follow the same approvals + metadata flow.",
+          "commands": [
+            "ls skills/cast-builder",
+            "cat skills/cast-builder/SKILL.md",
+            "cat scripts/cast_builder.sh"
+          ],
+          "verification": [
+            "rg -n \"cast-builder\" skills/cast-builder/SKILL.md",
+            "rg -n \"Cast Builder\" README.md"
+          ]
+        },
+        {
+          "id": "T902",
+          "summary": "Build an export bundle for the cast-builder skill and documentation.",
+          "description": "Create a tarball or archive containing the skill manifest, helper script, and docs so downstream repos can adopt the workflow without guessing which files to copy.",
+          "commands": [
+            "pwd",
+            "tar -czf /tmp/cast-builder.tar.gz scripts/cast_builder.sh skills/cast-builder"
+          ],
+          "verification": [
+            "ls /tmp | rg -n cast-builder",
+            "sha256sum /tmp/cast-builder.tar.gz"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 10 — Guarded Delivery & Governance",
+      "summary": "Extend the governance story so the new cast-builder workflow, telemetry, and TUI visibility are audit-ready.",
+      "tasks": [
+        {
+          "id": "T1001",
+          "summary": "Clarify the telemetry contract between the verification report and the new cast builder context.",
+          "description": "Describe what metrics the Cast Builder panel, `execution/verification_report.json`, and `execution/next_task_context.json` expose so reviewers know how guard runs tie back to exported casts.",
+          "commands": [
+            "cat execution/verification_report.json",
+            "cat execution/next_task_context.json",
+            "rg -n \"cast-builder\" README.md"
+          ],
+          "verification": [
+            "rg -n \"Cast Builder\" hyperion/HYPERION.md",
+            "rg -n \"telemetry\" README.md"
+          ]
+        },
+        {
+          "id": "T1002",
+          "summary": "Document the cast-builder + TUI story inside the governance references.",
+          "description": "Update `references/ASI_FRAMEWORK.md`, `references/QUESTIONS.md`, and `HYPERION.md` to include links to the new panels, scripts, and outstanding decisions so future reviewers see how the automation is audited.",
+          "commands": [
+            "cat references/ASI_FRAMEWORK.md",
+            "cat references/QUESTIONS.md",
+            "cat HYPERION.md"
+          ],
+          "verification": [
+            "rg -n \"Cast Builder\" references/ASI_FRAMEWORK.md",
+            "rg -n \"cast builder\" references/QUESTIONS.md"
           ]
         }
       ]

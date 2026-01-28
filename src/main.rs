@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 mod agent;
 mod apply;
+mod cast_builder;
 mod doctor;
 mod exporter;
 mod fs_watch;
@@ -19,6 +20,7 @@ mod orchestrator;
 mod queue;
 mod request;
 mod runner;
+mod telemetry;
 mod tui;
 mod validator;
 mod watcher;
@@ -56,6 +58,10 @@ enum Commands {
         agents: usize,
         #[arg(long, default_value_t = 3)]
         workers: usize,
+    },
+    Cast {
+        #[arg(long)]
+        out: Option<PathBuf>,
     },
     Export {
         #[arg(long)]
@@ -175,6 +181,10 @@ fn main() -> anyhow::Result<()> {
                 file.display(),
                 enqueued
             );
+            Ok(())
+        }
+        Some(Commands::Cast { out }) => {
+            cast_builder::run_cast_builder(out)?;
             Ok(())
         }
         Some(Commands::Export { dest, overwrite }) => {

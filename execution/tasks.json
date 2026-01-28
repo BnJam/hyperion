@@ -13,6 +13,14 @@
     {"id": "T501", "description": "T501: Define agent harness responsibilities and validation hooks.", "status": "pending"},
     {"id": "T502", "description": "T502: Wire the agent into the orchestrator/request path.", "status": "pending"},
     {"id": "T601", "description": "T601: Emit telemetry that correlates agent requests with guard runs.", "status": "pending"},
-    {"id": "T602", "description": "T602: Document the agent workflow plus outstanding decisions.", "status": "pending"}
+    {"id": "T602", "description": "T602: Document the agent workflow plus outstanding decisions.", "status": "pending"},
+    {"id": "T701", "description": "T701: Design the cast-builder REPL/subcommand that negotiates intent + approvals and writes cast JSON for Copilot agents.", "status": "pending"},
+    {"id": "T702", "description": "T702: Ship an exportable skill that orchestrates the REPL and cast submission into Copilot agents.", "status": "pending"},
+    {"id": "T801", "description": "T801: Add a TUI panel that highlights the cast-builder export status and next-task context.", "status": "pending"},
+    {"id": "T802", "description": "T802: Document the TUI changes plus how the exported skill surfaces status in the dashboard.", "status": "pending"},
+    {"id": "T901", "description": "T901: Document and test the `skills/cast-builder` manifest plus the cast-builder helper.", "status": "pending"},
+    {"id": "T902", "description": "T902: Build an export bundle for the cast-builder skill and documentation.", "status": "pending"},
+    {"id": "T100", "description": "T1001: Clarify the telemetry contract between the verification report and the new cast builder context.", "status": "pending"},
+    {"id": "T100", "description": "T1002: Document the cast-builder + TUI story inside the governance references.", "status": "pending"}
   ]
 }

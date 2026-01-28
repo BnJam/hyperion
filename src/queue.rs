@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -577,20 +577,20 @@ impl SqliteQueue {
             .query_row(
                 "SELECT MAX(created_at) FROM change_queue_logs WHERE message = 'cleanup'",
                 [],
-                |row| row.get(0),
+                |row| row.get::<_, Option<i64>>(0),
             )
             .optional()?;
-        Ok(row)
+        Ok(row.flatten())
     }
 
     pub fn max_updated_timestamp(&self) -> anyhow::Result<Option<i64>> {
         let conn = self.connection()?;
         let row = conn
             .query_row("SELECT MAX(updated_at) FROM change_queue", [], |row| {
-                row.get(0)
+                row.get::<_, Option<i64>>(0)
             })
             .optional()?;
-        Ok(row)
+        Ok(row.flatten())
     }
 
     pub fn wal_checkpoint_status(&self) -> anyhow::Result<WalCheckpointStats> {
@@ -626,7 +626,7 @@ impl SqliteQueue {
         let failed = self.list(QueueStatus::Failed)?.len();
 
         let mut stmt = conn.prepare(
-            "SELECT message, details
+            "SELECT message, details, task_id, created_at
              FROM change_queue_logs
              WHERE created_at >= ?1
              ORDER BY created_at DESC",
@@ -640,12 +640,21 @@ impl SqliteQueue {
         let mut apply_samples = 0usize;
         let mut applied_count = 0usize;
         let mut lease_contention_events = 0usize;
+        let mut agent_request_count = 0usize;
+        let mut request_complexity_total = 0f64;
+        let mut guard_successes = 0usize;
+        let mut guard_failures = 0usize;
+        let mut approval_latency_total = 0f64;
+        let mut approval_latency_samples = 0usize;
+        let mut request_timestamps: HashMap<String, i64> = HashMap::new();
         while let Some(row) = rows.next()? {
             let message: String = row.get(0)?;
             let details_str: Option<String> = row.get(1)?;
             let details = details_str
                 .as_deref()
                 .and_then(|text| serde_json::from_str::<Value>(text).ok());
+            let task_id: String = row.get(2)?;
+            let created_at: i64 = row.get(3)?;
             match message.as_str() {
                 "dequeue_metrics" => {
                     if let Some(details) = &details {
@@ -680,6 +689,30 @@ impl SqliteQueue {
                             apply_duration_total += apply_duration;
                             apply_samples += 1;
                         }
+                    }
+                }
+                "agent_request" => {
+                    agent_request_count += 1;
+                    request_timestamps.insert(task_id.clone(), created_at);
+                    if let Some(details) = &details {
+                        if let Some(complexity) = details.get("complexity").and_then(Value::as_f64)
+                        {
+                            request_complexity_total += complexity;
+                        }
+                    }
+                }
+                "guard_success" => {
+                    guard_successes += 1;
+                    if let Some(start) = request_timestamps.remove(&task_id) {
+                        approval_latency_total += (created_at - start) as f64;
+                        approval_latency_samples += 1;
+                    }
+                }
+                "guard_failure" => {
+                    guard_failures += 1;
+                    if let Some(start) = request_timestamps.remove(&task_id) {
+                        approval_latency_total += (created_at - start) as f64;
+                        approval_latency_samples += 1;
                     }
                 }
                 _ => {}
@@ -717,6 +750,27 @@ impl SqliteQueue {
         let max_updated = self.max_updated_timestamp()?;
         let timestamp_skew = max_updated.map(|value| now - value);
         let wal_checkpoint_stats = self.wal_checkpoint_status().ok();
+        let agent_requests_per_second = if agent_request_count > 0 {
+            Some(agent_request_count as f64 / window as f64)
+        } else {
+            None
+        };
+        let agent_average_complexity = if agent_request_count > 0 {
+            Some(request_complexity_total / agent_request_count as f64)
+        } else {
+            None
+        };
+        let guard_events = guard_successes + guard_failures;
+        let agent_guard_success_rate = if guard_events > 0 {
+            Some(guard_successes as f64 / guard_events as f64)
+        } else {
+            None
+        };
+        let agent_guard_approval_latency_ms = if approval_latency_samples > 0 {
+            Some(approval_latency_total / approval_latency_samples as f64)
+        } else {
+            None
+        };
 
         Ok(QueueMetrics {
             window_seconds: window,
@@ -738,6 +792,10 @@ impl SqliteQueue {
             last_cleanup_timestamp: last_cleanup,
             wal_checkpoint_stats,
             timestamp_skew_secs: timestamp_skew,
+            agent_requests_per_second,
+            agent_average_complexity,
+            agent_guard_success_rate,
+            agent_guard_approval_latency_ms,
         })
     }
 

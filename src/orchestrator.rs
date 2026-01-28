@@ -1,4 +1,4 @@
-use crate::models::{RequestedChange, TaskAssignment, TaskRequest};
+use crate::models::{AssignmentMetadata, RequestedChange, TaskAssignment, TaskRequest};
 
 pub fn decompose_request(request: &TaskRequest) -> Vec<TaskAssignment> {
     request
@@ -14,6 +14,18 @@ fn build_assignment(
     change: &RequestedChange,
     index: usize,
 ) -> TaskAssignment {
+    let metadata = AssignmentMetadata {
+        intent: format!("{} :: {}", request.summary, change.summary),
+        complexity: compute_complexity(change),
+        sample_diff: Some(sample_diff(change)),
+        telemetry_anchors: vec![
+            format!("cast:{}", request.request_id),
+            format!("task:{}", change.summary.replace(' ', "_")),
+        ],
+        approvals: Vec::new(),
+        agent_model: None,
+    };
+
     TaskAssignment {
         task_id: format!("{}-{}", request.request_id, index + 1),
         parent_request_id: request.request_id.clone(),
@@ -23,5 +35,20 @@ fn build_assignment(
             "Keep changes isolated to the listed files.".to_string(),
             "Provide a structured JSON change request on completion.".to_string(),
         ],
+        metadata,
     }
+}
+
+fn compute_complexity(change: &RequestedChange) -> u8 {
+    let length = change.summary.len() as u8;
+    let path_factor = change.path.len() as u8;
+    1 + ((length + path_factor) % 10)
+}
+
+fn sample_diff(change: &RequestedChange) -> String {
+    format!(
+        "diff --git a/{path} b/{path}\n@@ -0,0 +1 @@\n+// Update: {summary}",
+        path = change.path,
+        summary = change.summary
+    )
 }

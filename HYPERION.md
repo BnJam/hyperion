@@ -45,12 +45,15 @@ integration of AI into human society.
   promoting transparency and trust.
 - **Regulatory Compliance**: Adhere to existing laws and regulations while advocating for policies that
   support ethical AI development.
+- **Agent Transparency**: Structure each assignment with explicit intent/complexity/sample-diff metadata, route prompts through gpt-5-mini by default, fall back to gpt-4.1 for low-complexity casts, and log guard outcomes plus telemetry anchors so every cast stays auditable from request to apply.
 - **Ethical Audits**: Conduct regular audits of AI systems to ensure compliance with ethical
   standards and address any emerging concerns.
 - **Knowledge Sharing Platforms**: Develop platforms for sharing knowledge and best practices among 
   AI developers and users.
 - **Continuous Monitoring**: Implement systems for ongoing monitoring of AI behavior and performance 
   to identify and address potential issues proactively.
+- **Telemetry Replay**: Persist queue + agent metrics (throughput, guard success rate, approval latency) into `execution/verification_report.json` so dashboards and auditors can trend health without waiting for live TUI snapshots.
+- **Cast Builder Transparency**: Provide an interactive REPL plus new Cast Builder panel that records intent, approvals, and export status before Copilot agents consume the deterministic JSON cast.
 - **Human-Centric Design**: Prioritize user experience and human values in the design and deployment 
   of AI systems.
 - **Scenario Planning**: Engage in scenario planning to anticipate future challenges and

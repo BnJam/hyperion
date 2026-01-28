@@ -34,6 +34,8 @@ Developer agents do not directly edit the repository. Instead they submit **JSON
 - A `patch_hash` (SHA-256 of the patch text) so the queue can verify every change before applying.
 - Validation steps and expected outcomes
 
+Each change request now carries a `metadata` block describing the assignment `intent`, a `complexity` rating (1–10), a `sample_diff` snippet, telemetry anchors, any `approvals`, and the `agent_model` used to craft the payload. The agent harness materializes prompts around that metadata, choosing `gpt-5-mini` by default and downgrading to `gpt-4.1` for low-complexity tasks (complexity ≤ 3) while still recording guard outputs and approval latency inside the queue logs.
+
 The Merge Queue/Buffer:
 - Validates JSON schema
 - Applies compatible patches in parallel threads
@@ -46,6 +48,7 @@ The Merge Queue/Buffer:
 - Launch the integrated runtime: `cargo run` (default) or `cargo run -- run` starts the TUI dashboard plus worker pool for live monitoring.
 - Enqueue a task request headlessly: `cargo run -- request path/to/request.json` (prints how many change requests were enqueued and does not open the TUI).
   - To use the real Copilot harness instead of deterministic stubs, set `HYPERION_AGENT=copilot` before invoking `hyperion request`.
+- Craft a fully approved cast before queuing work: `cargo run -- cast` (or `scripts/cast_builder.sh`) runs an interactive REPL to capture intent, approvals, complexity, telemetry anchors, and requested changes, writes `taskjson/<REQUEST_ID>.json`, and updates the Cast Builder context for Copilot agents to ingest.
 - Validate change requests: `cargo run -- validate-change path/to/change.json`
 - Apply a change request with checks: `cargo run -- apply path/to/change.json --run-checks`
 - Operate the queue: `cargo run -- worker --run-checks --max-attempts 5`, `cargo run -- list-dead-letters`, `cargo run -- mark-applied <id>`
@@ -56,6 +59,8 @@ The Merge Queue/Buffer:
   Add `--overwrite` to force replacing an existing export, or rerun without the flag to receive a prompt before overwriting the target directory’s `skills/` catalog.
 - Run `cargo run -- doctor` to validate schema/index health, checkpoint the WAL, and report how many applied or dead-letter rows have aged beyond the retention window; the command now also surfaces dedup hit counts, timestamp skew, WAL checkpoint stats, and the last cleanup sweep timestamp.
 Workers and `hyperion run` now print `[progress]` lines every five seconds that mirror the metrics shown in the TUI’s Metrics panel (throughput/minute, average dequeue/apply latency, poll interval, and lease contention count) so operators can understand queue health before opening the dashboard.
+The same telemetry payload (throughput/latency, guard success rate, agent requests/sec, approval latency) is written to `execution/verification_report.json` so dashboards or automation can trend Hyperion health even when the CLI is not running.
+The Ratatui dashboard now includes a Cast Builder Status panel (below the file events) that highlights the most recent exported request ID, intent, complexity, and approvals so you can confirm the cast builder REPL aligned with the orchestrator’s expectations before Copilot agents consume it.
 The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`). The new Metrics panel mirrors the `[progress]` lines printed by `hyperion run`/`worker` so you can see throughput, latency, and lease contention without leaving the console.
 
 ## Example JSON Change Request (Sketch)
@@ -85,9 +90,15 @@ The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidanc
 - Review JSON schemas in `SCHEMAS.md`.
 - Run the Rust queue CLI (`cargo run -- init`) and load sample change requests.
 - Exercise the agent harness (`cargo run -- agent \"Summarize this task\"`).
+- Build a cast with `cargo run -- cast` (or `scripts/cast_builder.sh`) and inspect `taskjson/` plus the Cast Builder panel afterwards.
+- Use the `skills/cast-builder` manifest as a template when exporting this workflow to other operators.
 
 ## Contributing
 Contributions should align with the orchestration model and keep tasks scoped, isolated, and testable. For design changes, include a rationale and validation steps.
 // Orchestrated update for REQ-TEST-002-3 by agent-1
 // Orchestrated update for REQ-9001-1 by agent-2
 // Orchestrated update for REQ-9001-1 by agent-2
+// Orchestrated update for REQ-9001-1 by agent-1
+// Orchestrated update for REQ-9001-1 by agent-1
+// Orchestrated update for REQ-9001-1 by agent-1
+// Orchestrated update for REQ-9001-1 by agent-1

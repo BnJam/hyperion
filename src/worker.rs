@@ -10,6 +10,7 @@ use tracing::{info, warn};
 use crate::apply;
 use crate::queue::SqliteQueue;
 use crate::runner;
+use crate::telemetry;
 use crate::validator;
 use serde_json::json;
 
@@ -140,13 +141,26 @@ pub fn run_worker_with_signal(
             }
 
             if config.run_checks {
+                let guard_start = Instant::now();
                 if let Err(err) = runner::run_checks(&record.payload.checks) {
+                    let guard_duration = guard_start.elapsed();
                     let _ = queue.log_event(
                         record.id,
                         &record.payload.task_id,
                         "warn",
                         "checks failed",
                         Some(&failure_details(&err)),
+                    );
+                    let _ = queue.log_event(
+                        record.id,
+                        &record.payload.task_id,
+                        "warn",
+                        "guard_failure",
+                        Some(&json!({
+                            "error": err.to_string(),
+                            "guard_duration_ms": guard_duration.as_millis(),
+                            "checks_count": record.payload.checks.len(),
+                        })),
                     );
                     warn!(task_id = %record.payload.task_id, error = %err, "checks failed");
                     if record.attempts >= config.max_attempts {
@@ -156,6 +170,17 @@ pub fn run_worker_with_signal(
                     }
                     continue;
                 }
+                let guard_duration = guard_start.elapsed();
+                let _ = queue.log_event(
+                    record.id,
+                    &record.payload.task_id,
+                    "info",
+                    "guard_success",
+                    Some(&json!({
+                        "guard_duration_ms": guard_duration.as_millis(),
+                        "checks_count": record.payload.checks.len(),
+                    })),
+                );
             }
 
             queue.mark_applied(record.id)?;
@@ -206,6 +231,9 @@ fn report_progress(queue: &SqliteQueue) -> anyhow::Result<()> {
         fmt_opt(metrics.avg_apply_duration_ms, "ms"),
         metrics.lease_contention_events,
     );
+    if let Err(err) = telemetry::write_verification_report(queue) {
+        eprintln!("telemetry report failed: {err}");
+    }
     Ok(())
 }
 

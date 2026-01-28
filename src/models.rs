@@ -6,6 +6,8 @@ use serde_json::Value;
 pub struct ChangeRequest {
     pub task_id: String,
     pub agent: String,
+    #[serde(default)]
+    pub metadata: AssignmentMetadata,
     pub changes: Vec<ChangeOperation>,
     pub checks: Vec<String>,
 }
@@ -30,6 +32,38 @@ pub struct TaskAssignment {
     pub summary: String,
     pub file_targets: Vec<String>,
     pub instructions: Vec<String>,
+    #[serde(default)]
+    pub metadata: AssignmentMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssignmentMetadata {
+    pub intent: String,
+    pub complexity: u8,
+    pub sample_diff: Option<String>,
+    pub telemetry_anchors: Vec<String>,
+    pub approvals: Vec<ApprovalRecord>,
+    pub agent_model: Option<String>,
+}
+
+impl Default for AssignmentMetadata {
+    fn default() -> Self {
+        Self {
+            intent: String::new(),
+            complexity: 1,
+            sample_diff: None,
+            telemetry_anchors: Vec::new(),
+            approvals: Vec::new(),
+            agent_model: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApprovalRecord {
+    pub approver: String,
+    pub note: String,
+    pub timestamp: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +187,10 @@ pub struct QueueMetrics {
     pub last_cleanup_timestamp: Option<i64>,
     pub wal_checkpoint_stats: Option<WalCheckpointStats>,
     pub timestamp_skew_secs: Option<i64>,
+    pub agent_requests_per_second: Option<f64>,
+    pub agent_average_complexity: Option<f64>,
+    pub agent_guard_success_rate: Option<f64>,
+    pub agent_guard_approval_latency_ms: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,6 +217,10 @@ impl Default for QueueMetrics {
             last_cleanup_timestamp: None,
             wal_checkpoint_stats: None,
             timestamp_skew_secs: None,
+            agent_requests_per_second: None,
+            agent_average_complexity: None,
+            agent_guard_success_rate: None,
+            agent_guard_approval_latency_ms: None,
         }
     }
 }

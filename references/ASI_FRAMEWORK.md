@@ -13,3 +13,5 @@
 - Document the planned per-worker lease + WAL telemetry updates so Hyperion's queue follows TechnoCore's delightfully observable workflow.
 - Describe the issue bridge and merge queue buffer so operators know how Farcaster-style casts translate into Hyperion change requests.
 - Keep the CLI/TUI explicit: no hidden automation, just gating, telemetry, and human approvals borrowed from the two reference systems.
+- Capture the agent harness metadata expectations (intent, complexity, sample diffs, telemetry anchors, agent_model) so the cast protocol remains deterministic and traceable from ingestion to apply.
+- Surface the agent telemetry exports (requests/sec, guard success rate, approval latency) and note that `execution/verification_report.json` mirrors the TUI metrics for unattended dashboards.

@@ -32,6 +32,33 @@ Represents a unit of work for a Developer agent.
 }
 ```
 
+## AssignmentMetadata
+Contains the structured intent + telemetry hints the orchestrator attaches to each TaskAssignment.
+
+```json
+{
+  "intent": "Clarify the approval sentence in README.md",
+  "complexity": 4,
+  "sample_diff": "diff --git a/README.md b/README.md\\n@@ -1 +1 @@\\n-Previous text\\n+Updated guidance",
+  "telemetry_anchors": ["cast:REQ-1001", "task:Clarify_approval"],
+  "approvals": [
+    {
+      "approver": "human-operator",
+      "note": "Keep tone factual",
+      "timestamp": 1700000000
+    }
+  ],
+  "agent_model": "gpt-5-mini"
+}
+```
+
+- `intent` describes why the change exists so operators can interpret the cast in log viewers.
+- `complexity` is a 1–10 rating; Hyperion picks `gpt-5-mini` by default but downgrades to `gpt-4.1` when complexity ≤ 3 to save cost on trivial edits.
+- `sample_diff` captures minimal diff fragments or stylistic hints that reinforce the requested change.
+- `telemetry_anchors` tag metrics dashboards or trace logs so the TUI can highlight which casts touched which subsystems.
+- `approvals` records any human or guard approvals that accompany the assignment.
+- `agent_model` documents the model that produced the payload so audit trails expose the exact configuration used.
+
 ## ChangeRequest
 Represents a Developer-submitted change request.
 
@@ -39,6 +66,14 @@ Represents a Developer-submitted change request.
 {
   "task_id": "REQ-1001-1",
   "agent": "developer-2",
+  "metadata": {
+    "intent": "Implement token bucket based rate limiting",
+    "complexity": 5,
+    "sample_diff": "diff --git a/src/api/limits.rs b/src/api/limits.rs\\n@@ -10,7 +10,8 @@\\n-...\\n+...",
+    "telemetry_anchors": ["cast:REQ-1001", "task:Implement_token_bucket"],
+    "approvals": [],
+    "agent_model": "gpt-5-mini"
+  },
   "changes": [
     {
       "path": "src/api/limits.rs",
@@ -58,6 +93,7 @@ When constructing a change request:
 - `path` must stay relative and avoid traversal (`..`) to prevent directory escapes.
 - `patch` needs to mention the computed `+++ b/{path}` or `--- a/{path}` lines so the queue can detect file alignment.
 - `patch_hash` is the SHA-256 digest of the `patch` contents; the validator rejects requests whose hash does not match, ensuring integrity before apply.
+- `metadata` must include the orchestrator-provided intent, complexity, sample diff, telemetry anchors, approvals list, and agent_model so the downstream queue can reason about the cast.
 
 ## ValidationResult
 Describes validation outcomes for a change request.
@@ -97,6 +133,11 @@ Provides a telemetry snapshot (`hyperion queue-metrics --format json`) that mirr
     "wal": 8
   },
   "timestamp_skew_secs": 5
+,
+  "agent_requests_per_second": 1.2,
+  "agent_average_complexity": 4.3,
+  "agent_guard_success_rate": 0.92,
+  "agent_guard_approval_latency_ms": 210.0
 }
 ```
 
@@ -109,3 +150,5 @@ Provides a telemetry snapshot (`hyperion queue-metrics --format json`) that mirr
 - `dedup_hits` reports how many duplicate `task_id` + payload hash combinations were rejected during the sliding dedup window, and `last_cleanup_timestamp` records when the cleanup sweep most recently ran.
 - `wal_checkpoint_stats` mirrors `PRAGMA wal_checkpoint(PASSIVE)` (checkpointed/log/wal pages) so operations can detect WAL pressure without peeking at the file.
 - `timestamp_skew_secs` equals `now - MAX(updated_at)` and highlights when queue updates stopped progressing.
+- `agent_requests_per_second` and `agent_average_complexity` correlate the rate/effort of agent-produced casts that the queue has seen.
+- `agent_guard_success_rate` reports how often guard suites (fmt/clippy/test) pass, and `agent_guard_approval_latency_ms` captures the span between enqueue and guard completion for each task.

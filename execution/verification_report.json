@@ -1,19 +1,29 @@
 {
-  "present": [
-    "/Users/bsmith/bnjam/hyperion/execution/plan_discovery_report.json",
-    "/Users/bsmith/bnjam/hyperion/execution/plan_validation_report.json",
-    "/Users/bsmith/bnjam/hyperion/execution/tasks.json",
-    "/Users/bsmith/bnjam/hyperion/execution/task_status_summary.json",
-    "/Users/bsmith/bnjam/hyperion/execution/git_status.txt",
-    "/Users/bsmith/bnjam/hyperion/execution/changed_files.json",
-    "/Users/bsmith/bnjam/hyperion/execution/approved_commands.txt",
-    "/Users/bsmith/bnjam/hyperion/execution/command_logs/command_1.log",
-    "/Users/bsmith/bnjam/hyperion/execution/command_logs/command_2.log",
-    "/Users/bsmith/bnjam/hyperion/execution/command_logs/command_3.log",
-    "/Users/bsmith/bnjam/hyperion/execution/command_logs/command_4.log",
-    "/Users/bsmith/bnjam/hyperion/execution/command_logs/command_5.log"
-  ],
-  "missing": [
-
-  ]
+  "window_seconds": 60,
+  "status_counts": {
+    "pending": 1,
+    "in_progress": 0,
+    "applied": 9,
+    "failed": 0
+  },
+  "avg_dequeue_latency_ms": null,
+  "avg_apply_duration_ms": null,
+  "avg_poll_interval_ms": null,
+  "throughput_per_minute": null,
+  "lease_contention_events": 0,
+  "timestamp": 1769582679,
+  "stale_applied_rows": 0,
+  "stale_dead_letter_rows": 0,
+  "dedup_hits": 0,
+  "last_cleanup_timestamp": null,
+  "wal_checkpoint_stats": {
+    "checkpointed": 0,
+    "log": 0,
+    "wal": 0
+  },
+  "timestamp_skew_secs": 0,
+  "agent_requests_per_second": 0.016666666666666666,
+  "agent_average_complexity": 4.0,
+  "agent_guard_success_rate": null,
+  "agent_guard_approval_latency_ms": null
 }

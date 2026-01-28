@@ -1,7 +1,9 @@
 #[cfg(feature = "tui")]
 use std::{
     collections::VecDeque,
+    fs,
     io::{self, IsTerminal},
+    path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -21,9 +23,11 @@ use ratatui::{
 };
 
 #[cfg(feature = "tui")]
-use crate::models::QueueStatus;
+use crate::models::{ApprovalRecord, QueueStatus};
 #[cfg(feature = "tui")]
 use crate::queue::SqliteQueue;
+#[cfg(feature = "tui")]
+use serde::Deserialize;
 #[cfg(feature = "tui")]
 use serde_json::Value;
 
@@ -215,14 +219,26 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                 .block(Block::default().title("Guidance").borders(Borders::ALL));
             frame.render_widget(guidance, status_chunks[2]);
 
+            let agent_requests = format_metric(metrics.agent_requests_per_second, "/s");
+            let agent_complexity = format_metric(metrics.agent_average_complexity, "");
+            let guard_success_rate = metrics
+                .agent_guard_success_rate
+                .map(|value| format!("{:.1}%", value * 100.0))
+                .unwrap_or_else(|| "n/a".to_string());
+            let approval_latency =
+                format_metric(metrics.agent_guard_approval_latency_ms, "ms");
             let metrics_text = format!(
-                "Window: {}s\nThroughput: {}\nAvg dequeue latency: {}\nAvg apply duration: {}\nAvg poll interval: {}\nLease contention events: {}\nQueue metrics panel + `[progress]` logs share these numbers; run `hyperion queue-metrics --format json --since {}` for structured output.",
+                "Window: {}s\nThroughput: {}\nAvg dequeue latency: {}\nAvg apply duration: {}\nAvg poll interval: {}\nLease contention events: {}\n\nAgent telemetry\nRequests/s: {}\nAvg complexity: {}\nGuard success rate: {}\nApproval latency: {}\nQueue metrics panel + `[progress]` logs share these numbers; run `hyperion queue-metrics --format json --since {}` for structured output.",
                 metrics.window_seconds,
                 format_metric(metrics.throughput_per_minute, "/min"),
                 format_metric(metrics.avg_dequeue_latency_ms, "ms"),
                 format_metric(metrics.avg_apply_duration_ms, "ms"),
                 format_metric(metrics.avg_poll_interval_ms, "ms"),
                 metrics.lease_contention_events,
+                agent_requests,
+                agent_complexity,
+                guard_success_rate,
+                approval_latency,
                 metrics.window_seconds,
             );
             let metrics_block = Paragraph::new(metrics_text)
@@ -404,15 +420,27 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                         .borders(Borders::ALL),
                 );
 
+            let cast_context = load_cast_builder_context();
+            let cast_text = format_cast_builder_text(cast_context.as_ref());
+
             let details_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Length(9),
+                    Constraint::Length(7),
                     Constraint::Length(6),
                     Constraint::Min(5),
                 ])
                 .split(bottom_chunks[1]);
             frame.render_widget(file_event_table, details_chunks[0]);
+
+            let cast_para = Paragraph::new(cast_text)
+                .block(
+                    Block::default()
+                        .title("Cast Builder Status")
+                        .borders(Borders::ALL),
+                );
+            frame.render_widget(cast_para, details_chunks[1]);
 
             let detail_text = if state.show_detail {
                 if let Some(record) = queue_records.get(state.selected_index) {
@@ -444,7 +472,7 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                         .title("Selection Detail")
                         .borders(Borders::ALL),
                 );
-            frame.render_widget(detail_para, details_chunks[1]);
+            frame.render_widget(detail_para, details_chunks[2]);
 
             let modified_text = {
                 let files = config.modified_files.lock().unwrap();
@@ -465,7 +493,7 @@ pub fn run_dashboard_with_config(queue: &SqliteQueue, config: TuiConfig) -> anyh
                         .title("Recent Local Modifications")
                         .borders(Borders::ALL),
                 );
-            frame.render_widget(modified_para, details_chunks[2]);
+            frame.render_widget(modified_para, details_chunks[3]);
         })?;
 
         let refresh_duration = Duration::from_millis(REFRESH_INTERVALS[state.refresh_index]);
@@ -521,6 +549,64 @@ fn truncate(value: &str, max: usize) -> String {
         let mut truncated = value[..max].to_string();
         truncated.push('…');
         truncated
+    }
+}
+
+#[cfg(feature = "tui")]
+#[derive(Debug, Clone, Deserialize)]
+struct CastBuilderContext {
+    request_id: String,
+    summary: String,
+    intent: String,
+    complexity: u8,
+    telemetry_anchors: Vec<String>,
+    approvals: Vec<ApprovalRecord>,
+    exported_at: Option<u64>,
+}
+
+#[cfg(feature = "tui")]
+fn load_cast_builder_context() -> Option<CastBuilderContext> {
+    let path = Path::new("execution/next_task_context.json");
+    let text = fs::read_to_string(path).ok()?;
+    let data: Value = serde_json::from_str(&text).ok()?;
+    data.get("cast_builder")
+        .and_then(|value| serde_json::from_value(value.clone()).ok())
+}
+
+#[cfg(feature = "tui")]
+fn format_cast_builder_text(ctx: Option<&CastBuilderContext>) -> String {
+    if let Some(context) = ctx {
+        let anchors = if context.telemetry_anchors.is_empty() {
+            "none".to_string()
+        } else {
+            context.telemetry_anchors.join(", ")
+        };
+        let approvals = if context.approvals.is_empty() {
+            "none".to_string()
+        } else {
+            context
+                .approvals
+                .iter()
+                .map(|approval| approval.approver.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let exported = context
+            .exported_at
+            .map(|value| format!("{value}s since epoch"))
+            .unwrap_or_else(|| "n/a".to_string());
+        format!(
+            "Request: {}\nSummary: {}\nIntent: {}\nComplexity: {}/10\nAnchors: {}\nApprovals: {}\nExported: {}",
+            context.request_id,
+            context.summary,
+            context.intent,
+            context.complexity,
+            anchors,
+            approvals,
+            exported,
+        )
+    } else {
+        "Cast Builder: no exports yet.".to_string()
     }
 }
 

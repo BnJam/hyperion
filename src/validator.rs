@@ -11,6 +11,24 @@ pub fn validate_change_request(request: &ChangeRequest) -> ValidationResult {
     if request.agent.trim().is_empty() {
         errors.push("agent is required".to_string());
     }
+    if request.metadata.intent.trim().is_empty() {
+        errors.push("metadata.intent is required".to_string());
+    }
+    if request.metadata.complexity == 0 || request.metadata.complexity > 10 {
+        errors.push("metadata.complexity must be between 1 and 10".to_string());
+    }
+    if request
+        .metadata
+        .sample_diff
+        .as_deref()
+        .map(|text| text.trim().is_empty())
+        .unwrap_or(true)
+    {
+        errors.push("metadata.sample_diff is required".to_string());
+    }
+    if request.metadata.telemetry_anchors.is_empty() {
+        errors.push("metadata.telemetry_anchors must not be empty".to_string());
+    }
     if request.changes.is_empty() {
         errors.push("changes must not be empty".to_string());
     }
@@ -116,6 +134,7 @@ fn patch_hash(patch: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::AssignmentMetadata;
     use crate::models::OperationKind;
 
     #[test]
@@ -123,6 +142,14 @@ mod tests {
         let request = ChangeRequest {
             task_id: "".to_string(),
             agent: "".to_string(),
+            metadata: AssignmentMetadata {
+                intent: "".to_string(),
+                complexity: 0,
+                sample_diff: None,
+                telemetry_anchors: vec![],
+                approvals: vec![],
+                agent_model: None,
+            },
             changes: vec![ChangeOperation {
                 path: "".to_string(),
                 operation: OperationKind::Update,
@@ -153,6 +180,14 @@ mod tests {
         let request = ChangeRequest {
             task_id: "TASK-1".to_string(),
             agent: "dev-1".to_string(),
+            metadata: AssignmentMetadata {
+                intent: "Clarify run".to_string(),
+                complexity: 3,
+                sample_diff: Some("diff --git a/foo b/foo".to_string()),
+                telemetry_anchors: vec!["cast:REQ".to_string()],
+                approvals: vec![],
+                agent_model: Some("gpt-5-mini".to_string()),
+            },
             changes: vec![ChangeOperation {
                 path: "src/lib.rs".to_string(),
                 operation: OperationKind::Update,
