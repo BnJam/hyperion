@@ -1,377 +1,96 @@
 {
-  "plan_definition": "plans/phase_plan.json",
+  "plan_definition": "../../.codex/skills/workplan/plans/phase_plan.json",
   "plan_path": "/Users/bsmith/bnjam/hyperion/WORKPLAN.md",
   "phase_index": 0,
   "task_index": 0,
   "phases": [
     {
-      "name": "Phase 0 \u2014 Queue Telemetry & Lease Hardening",
-      "summary": "Make leases, TTLs, dedup windows, and Doctor telemetry actionable so casts never linger unnoticed.",
+      "name": "Phase 1 \u2014 Document the flow",
+      "summary": "Describe how authors use the generator, the phase tracker, and the helper script before running developer.",
       "tasks": [
         {
           "id": "T001",
-          "summary": "Audit SqliteQueue leases, dedupe, and Doctor instrumentation.",
-          "description": "Review queue/doctor sources, codify TTL/lease recovery rules, and add WAL audit points so lease histories stay observable.",
+          "summary": "Update the README/SKILL references, command checklist, and reference docs to describe the generator + progress flow.",
+          "description": "Clarify that authors should run scripts/generate_plan.py, inspect execution/phase_progress.json, and refer to references/ASI_FRAMEWORK.md before invoking developer.",
           "commands": [
-            "rg -n \"leased_until\" src/queue.rs",
-            "rg -n \"DEFAULT_DEDUP_WINDOW\" hyperion/src/doctor.rs",
-            "rg -n \"QueueMetrics\" hyperion/src/models.rs"
+            "rg -n \"workplan-helper\" README.md",
+            "rg -n \"phase_progress\" references"
           ],
           "verification": [
-            "cargo fmt --check",
-            "rg -n \"lease\" hyperion/HYPERION.md"
+            "python3 scripts/generate_plan.py --definition plans/phase_plan.json --output WORKPLAN.md --progress execution/phase_progress.json"
           ],
           "status": "current"
         },
         {
           "id": "T002",
-          "summary": "Add a lease reclamation watchdog tied to WAL logs.",
-          "description": "Implement or document a watcher that scans change_queue for expired leases, reclaims them, and logs the events as ChangeQueueLog entries for easier triaging.",
+          "summary": "Capture the deterministic surface and open questions in the new references/ASI_FRAMEWORK.md plus references/QUESTIONS.md entries.",
+          "description": "Document the ASI guidance in the top-level references so plan authors rely on visible docs.",
           "commands": [
-            "rg -n \"watcher\" src",
-            "cat hyperion/src/watcher.rs"
+            "cat references/ASI_FRAMEWORK.md",
+            "cat references/QUESTIONS.md"
           ],
           "verification": [
-            "rg -n \"lease reclaim\" hyperion/execution/command_logs/command_*"
+            "scripts/validate-plan.sh --plan ./WORKPLAN.md --required \"Intent,Goals,Non-Goals,Scope,Constraints,Plan,Commands,Validation,Approval\" --approval-pattern \"^Approved:[[:space:]]+yes$\""
           ],
           "status": "pending"
         }
       ]
     },
     {
-      "name": "Phase 1 \u2014 Cast Schema & Validation",
-      "summary": "Ensure every cast payload carries structured headers, approvals, and guard outputs before the queue touches it.",
+      "name": "Phase 2 \u2014 Generate phased plans",
+      "summary": "Introduce scripts that render WORKPLAN.md from the definition and output execution/phase_progress.json.",
       "tasks": [
         {
-          "id": "T101",
-          "summary": "Define the CastPayload schema and propagate it through models/requests.",
-          "description": "Add a typed CastPayload (task_id, agent_id, approvals, TTL, telemetry anchors, guard command outputs) in models.rs and ensure request types/serializers reflect it.",
+          "id": "T003",
+          "summary": "Create scripts/generate_plan.py and scripts/update_phase_progress.py to keep phases/tasks structured and track status.",
+          "description": "Generate tasks with commands/listing plus a progress artifact that newbies can read.",
           "commands": [
-            "cat hyperion/src/models.rs",
-            "cat hyperion/src/request.rs"
+            "python3 scripts/generate_plan.py --definition plans/phase_plan.json --output WORKPLAN.md --progress execution/phase_progress.json"
           ],
           "verification": [
-            "rg -n \"CastPayload\" hyperion/src",
-            "rg -n \"Cast\" hyperion/SCHEMAS.md"
+            "cat execution/phase_progress.json"
           ],
           "status": "pending"
         },
         {
-          "id": "T102",
-          "summary": "Enforce payload version/TTL/checksum during validation/enqueue.",
-          "description": "Extend validator.rs (or doctor.rs) to assert payload version, TTL, and checksum, then call those checks inside SqliteQueue::enqueue so only audited payloads enter the queue.",
+          "id": "T004",
+          "summary": "Ensure WORKPLAN.md is regenerated from the definition whenever the definition changes.",
+          "description": "The plan should always reflect the latest phases/tasks inside plans/phase_plan.json.",
           "commands": [
-            "rg -n \"validator\" hyperion/src",
-            "rg -n \"enqueue\" hyperion/src/queue.rs"
+            "python3 scripts/generate_plan.py --definition plans/phase_plan.json --output WORKPLAN.md --progress execution/phase_progress.json"
           ],
           "verification": [
-            "cargo test --workspace",
-            "rg -n \"validator payload\" hyperion/execution/command_logs/command_*"
+            "cat WORKPLAN.md"
           ],
           "status": "pending"
         }
       ]
     },
     {
-      "name": "Phase 2 \u2014 Issue \u2192 Merge Cast Flow",
-      "summary": "Ingest Farcaster-style casts, track guard outputs, and buffer them in a merge queue that waits for approvals + CI.",
+      "name": "Phase 3 \u2014 Track progress from developer",
+      "summary": "Hook developer's execute-plan loop into the workplan progress tracker and emit next-task context.",
       "tasks": [
         {
-          "id": "T201",
-          "summary": "Build the issue bridge that enqueues casts with guard metadata.",
-          "description": "Wire orchestrator.rs/runner.rs to process Farcaster-style casts, record guard commands/approvals, and enqueue them while preserving the metadata.",
+          "id": "T005",
+          "summary": "Add scripts/workplan-helper.sh and update execute-plan.sh so the developer skill always queries workplan for the next task.",
+          "description": "Each completed task triggers an update_phase_progress call and returns a structured JSON with the next phase/task context.",
           "commands": [
-            "cat hyperion/src/orchestrator.rs",
-            "rg -n \"issue\" hyperion/src/runner.rs"
+            "../developer/scripts/workplan-helper.sh next-task --plan ./WORKPLAN.md --progress execution/phase_progress.json --task T005"
           ],
           "verification": [
-            "rg -n \"merge queue\" hyperion/src",
-            "rg -n \"issue bridge\" hyperion/HARDENING.md"
+            "python3 scripts/generate_plan.py --definition plans/phase_plan.json --output WORKPLAN.md --progress execution/phase_progress.json && cat execution/next_task_context.json"
           ],
           "status": "pending"
         },
         {
-          "id": "T202",
-          "summary": "Implement a merge queue buffer + release stub tied to guard suites.",
-          "description": "Add a buffer in exporter.rs/runner.rs that holds casts until cargo fmt/clippy/test pass plus human approval, logging CI outputs inside ChangeQueueLog for auditability.",
+          "id": "T006",
+          "summary": "Document how developer reads execution/next_task_context.json and phase_progress before resuming work.",
+          "description": "Ensure plan authors see the structured message and understand how phases roll over.",
           "commands": [
-            "rg -n \"export\" hyperion/src",
-            "rg -n \"cargo fmt\" hyperion/execution/commands_from_plan.txt"
-          ],
-          "verification": [
-            "rg -n \"guard run\" hyperion/execution/exit_codes.json"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 3 \u2014 RATATUI Visibility & Observability",
-      "summary": "Surface queue/guard telemetry inside the TUI and emit structured reports for dashboards.",
-      "tasks": [
-        {
-          "id": "T301",
-          "summary": "Surface queue metrics + guard history in the RATATUI panels.",
-          "description": "Update tui.rs/fs_watch.rs to display queue depth, cast latency, WAL progress, guard command results, approvals, and ChangeQueueLog insights.",
-          "commands": [
-            "rg -n \"ratatui\" hyperion/src",
-            "cat hyperion/src/tui.rs"
-          ],
-          "verification": [
-            "echo 'TUI snapshot references cast latency, queue depth, guard outcomes'"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T302",
-          "summary": "Emit structured telemetry per run for dashboards to trend.",
-          "description": "Write queue depth, WAL checkpoint stats, dedup hits, and guard results into execution/verification_report.json on every run so dashboards ingest deterministic telemetry.",
-          "commands": [
-            "cat hyperion/src/exporter.rs",
-            "rg -n \"verification_report\" execution"
-          ],
-          "verification": [
-            "rg -n \"queue depth\" hyperion/execution/verification_report.json"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 4 \u2014 Testing, Governance & Playbooks",
-      "summary": "Create cast replay fixtures, capture WAL audits, and document governance playbooks for operators.",
-      "tasks": [
-        {
-          "id": "T401",
-          "summary": "Expand CI/tests with cast replay fixtures and WAL audits.",
-          "description": "Export sample payloads from request/models, build fixtures that replay casts, and verify WAL retention plus guard logging during cargo test runs.",
-          "commands": [
-            "cat hyperion/src/request.rs",
-            "cat hyperion/src/models.rs"
-          ],
-          "verification": [
-            "cargo test --workspace",
-            "rg -n \"cast fixture\" hyperion/tests"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T402",
-          "summary": "Update docs/playbooks to explain the deterministic cast lifecycle.",
-          "description": "Refresh README.md, HYPERION.md, references/ASI_FRAMEWORK.md, and references/QUESTIONS.md with the issue bridge story, guard requirements, telemetry expectations, and lingering decisions.",
-          "commands": [
-            "cat hyperion/README.md",
-            "rg -n \"cast\" hyperion/references/QUESTIONS.md"
-          ],
-          "verification": [
-            "rg -n \"deterministic\" hyperion/references/QUESTIONS.md",
-            "rg -n \"cast work\" hyperion/HYPERION.md"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 5 \u2014 AI Agent Integration",
-      "summary": "Introduce an AI agent harness that produces TaskRequest/ChangeRequest payloads and ensures every cast is approved before enqueue.",
-      "tasks": [
-        {
-          "id": "T501",
-          "summary": "Define agent harness responsibilities and validation hooks.",
-          "description": "Clarify how the AI agent should gather intent, generate TaskRequest payloads, validate against the schemas, and capture approval metadata before hitting the orchestrator.",
-          "commands": [
-            "rg -n \"AgentHarness\" hyperion/src",
-            "cat hyperion/src/agent.rs"
-          ],
-          "verification": [
-            "rg -n \"agent harness\" hyperion/HYPERION.md"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T502",
-          "summary": "Wire the agent into the orchestrator/request path.",
-          "description": "Update orchestrator.rs/request.rs to accept AI-produced TaskRequest JSON, translate it into ChangeRequests, and submit them via cargo run -- enqueue while recording guard outputs.",
-          "commands": [
-            "cat hyperion/src/request.rs",
-            "cat hyperion/src/orchestrator.rs"
-          ],
-          "verification": [
-            "rg -n \"TaskRequest\" hyperion/src",
-            "rg -n \"change request\" hyperion/execution/command_logs/command_*"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 6 \u2014 Agent Monitoring & Feedback",
-      "summary": "Track agent outcomes, approvals, and telemetry so operators trust the automation.",
-      "tasks": [
-        {
-          "id": "T601",
-          "summary": "Emit telemetry that correlates agent requests with guard runs.",
-          "description": "Push agent-generated metrics (requests/sec, approval latency, guard success rate) into execution/verification_report.json and mirror them in the TUI metrics panel.",
-          "commands": [
-            "rg -n \"QueueMetrics\" hyperion/src/models.rs",
-            "cat hyperion/execution/verification_report.json"
-          ],
-          "verification": [
-            "rg -n \"agent\" hyperion/execution/verification_report.json"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T602",
-          "summary": "Document the agent workflow plus outstanding decisions.",
-          "description": "Refresh README.md, HYPERION.md, references/ASI_FRAMEWORK.md, and references/QUESTIONS.md with the agent automation story, guard requirements, and any unresolved governance questions.",
-          "commands": [
-            "cat hyperion/README.md",
-            "cat hyperion/HYPERION.md"
-          ],
-          "verification": [
-            "rg -n \"agent harness\" hyperion/references/ASI_FRAMEWORK.md",
-            "rg -n \"approval\" hyperion/references/QUESTIONS.md"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 7 \u2014 Cast Builder & Agent Export",
-      "summary": "Add a human-in-the-loop REPL that finalizes casts before Copilot ingestion and ensure exported skills reflect the structured guidance flow.",
-      "tasks": [
-        {
-          "id": "T701",
-          "summary": "Design the cast-builder REPL/subcommand that negotiates intent + approvals and writes cast JSON for Copilot agents.",
-          "description": "Implement a `hyperion cast` (or exported-skill) REPL that records the conversation, collects AssignmentMetadata (intent, complexity, sample diff, telemetry anchors, approvals), and writes the approved phase/task JSON into `taskjson/` so Copilot agents ingest a deterministic payload.",
-          "commands": [
-            "cat src/request.rs",
-            "rg -n \"HYPERION_AGENT\" src/request.rs",
-            "rg -n \"CopilotHarness\" src/agent.rs"
-          ],
-          "verification": [
-            "rg -n \"cast-builder\" README.md",
-            "cat execution/next_task_context.json | rg -n \"intent\""
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T702",
-          "summary": "Ship an exportable skill that orchestrates the REPL and cast submission into Copilot agents.",
-          "description": "Create a `skills/cast-builder` (or similar) directory with a SKILL manifest that mimics the workplan skill scaffolding so agentic operators know which scripts to run, how progress is tracked, and how to export the cast JSON into the queue.",
-          "commands": [
-            "ls skills/workplan",
-            "cat skills/workplan/SKILL.md"
-          ],
-          "verification": [
-            "rg -n \"cast-builder\" skills/*/SKILL.md",
-            "rg -n \"agent harness\" README.md"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 8 \u2014 TUI Visibility for Cast Builder",
-      "summary": "Show the new cast-builder lifecycle and export skill state inside the TUI so operators know when casts are finalized and exported.",
-      "tasks": [
-        {
-          "id": "T801",
-          "summary": "Add a TUI panel that highlights the cast-builder export status and next-task context.",
-          "description": "Extend `src/tui.rs` to render the latest cast-builder assignment intent/complexity plus the export skill status using the `execution/next_task_context.json` data, ensuring operators can see when a cast is ready for Copilot agents.",
-          "commands": [
-            "rg -n \"next_task_context\" src/tui.rs",
             "cat execution/next_task_context.json"
           ],
           "verification": [
-            "Run `cargo run -- queue-metrics --format json` and confirm the new cast-builder fields appear",
-            "TUI screenshot or log entry referencing cast-builder status"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T802",
-          "summary": "Document the TUI changes plus how the exported skill surfaces status in the dashboard.",
-          "description": "Update README.md and HYPERION.md (or a dedicated docs file) so you know which TUI panes show cast-builder telemetry, what the statuses mean, and how to correlate them with the exported skill/plan tracker.",
-          "commands": [
-            "cat README.md",
-            "rg -n \"cast-builder\" HYPERION.md"
-          ],
-          "verification": [
-            "rg -n \"cast-builder\" README.md",
-            "rg -n \"TUI\" HYPERION.md"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 9 \u2014 Cast Skill Distribution",
-      "summary": "Package the cast-builder experience as a reusable skill and exporting bundle so other operator agents can reuse the workflow.",
-      "tasks": [
-        {
-          "id": "T901",
-          "summary": "Document and test the `skills/cast-builder` manifest plus the cast-builder helper.",
-          "description": "Ensure `skills/cast-builder/SKILL.md` references `scripts/cast_builder.sh` and explains how to run the REPL so imported skills follow the same approvals + metadata flow.",
-          "commands": [
-            "ls skills/cast-builder",
-            "cat skills/cast-builder/SKILL.md",
-            "cat scripts/cast_builder.sh"
-          ],
-          "verification": [
-            "rg -n \"cast-builder\" skills/cast-builder/SKILL.md",
-            "rg -n \"Cast Builder\" README.md"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T902",
-          "summary": "Build an export bundle for the cast-builder skill and documentation.",
-          "description": "Create a tarball or archive containing the skill manifest, helper script, and docs so downstream repos can adopt the workflow without guessing which files to copy.",
-          "commands": [
-            "pwd",
-            "tar -czf /tmp/cast-builder.tar.gz scripts/cast_builder.sh skills/cast-builder"
-          ],
-          "verification": [
-            "ls /tmp | rg -n cast-builder",
-            "sha256sum /tmp/cast-builder.tar.gz"
-          ],
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "name": "Phase 10 \u2014 Guarded Delivery & Governance",
-      "summary": "Extend the governance story so the new cast-builder workflow, telemetry, and TUI visibility are audit-ready.",
-      "tasks": [
-        {
-          "id": "T1001",
-          "summary": "Clarify the telemetry contract between the verification report and the new cast builder context.",
-          "description": "Describe what metrics the Cast Builder panel, `execution/verification_report.json`, and `execution/next_task_context.json` expose so reviewers know how guard runs tie back to exported casts.",
-          "commands": [
-            "cat execution/verification_report.json",
-            "cat execution/next_task_context.json",
-            "rg -n \"cast-builder\" README.md"
-          ],
-          "verification": [
-            "rg -n \"Cast Builder\" hyperion/HYPERION.md",
-            "rg -n \"telemetry\" README.md"
-          ],
-          "status": "pending"
-        },
-        {
-          "id": "T1002",
-          "summary": "Document the cast-builder + TUI story inside the governance references.",
-          "description": "Update `references/ASI_FRAMEWORK.md`, `references/QUESTIONS.md`, and `HYPERION.md` to include links to the new panels, scripts, and outstanding decisions so future reviewers see how the automation is audited.",
-          "commands": [
-            "cat references/ASI_FRAMEWORK.md",
-            "cat references/QUESTIONS.md",
-            "cat HYPERION.md"
-          ],
-          "verification": [
-            "rg -n \"Cast Builder\" references/ASI_FRAMEWORK.md",
-            "rg -n \"cast builder\" references/QUESTIONS.md"
+            "scripts/validate-plan.sh --plan ./WORKPLAN.md --required \"Intent,Goals,Non-Goals,Scope,Constraints,Plan,Commands,Validation,Approval\" --approval-pattern \"^Approved:[[:space:]]+yes$\""
           ],
           "status": "pending"
         }

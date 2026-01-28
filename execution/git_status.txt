@@ -1,29 +1,5 @@
  M HYPERION.md
  M README.md
- M SCHEMAS.md
- M WORKPLAN.md
- M execution/changed_files.json
- M execution/discovery_log.md
- M execution/git_status.txt
- M execution/librarian_discovery.md
- M execution/phase_progress.json
- M execution/plan_discovery_report.json
- M execution/plan_validation_report.json
- M execution/task_status_summary.json
- M execution/tasks.json
- M execution/verification_report.json
- M plans/phase_plan.json
  M references/ASI_FRAMEWORK.md
  M references/QUESTIONS.md
- M src/main.rs
- M src/models.rs
- M src/orchestrator.rs
- M src/queue.rs
- M src/request.rs
- M src/tui.rs
- M src/validator.rs
- M src/worker.rs
-?? scripts/cast_builder.sh
-?? skills/cast-builder/
-?? src/cast_builder.rs
-?? src/telemetry.rs
+ M skills/cast-builder/SKILL.md

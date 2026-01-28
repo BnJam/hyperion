@@ -5,3 +5,4 @@
 3. Do we need to extend the change_queue schema with dedup keys/time-to-live entries before we start ingesting Farcaster-style casts, or can we defer that until later phases?
 4. Should the assignment complexity threshold that triggers the gpt-4.1 fallback be configurable, or is the current ≤3 rule enough for deterministic rope-offs?
 5. How tightly should we couple telemetry anchors with guard events before showing them in the TUI (for example, should we expose identical agent intent strings), and who owns the final approvals recorded in `metadata.approvals`?
+6. When distributing the `skills/cast-builder` bundle, should we also include a sample `execution/next_task_context.json` and checksum so operators can verify the telemetry contract before their Copilot agents start consuming casts?

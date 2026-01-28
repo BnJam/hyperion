@@ -54,6 +54,8 @@ integration of AI into human society.
   to identify and address potential issues proactively.
 - **Telemetry Replay**: Persist queue + agent metrics (throughput, guard success rate, approval latency) into `execution/verification_report.json` so dashboards and auditors can trend health without waiting for live TUI snapshots.
 - **Cast Builder Transparency**: Provide an interactive REPL plus new Cast Builder panel that records intent, approvals, and export status before Copilot agents consume the deterministic JSON cast.
+- **Cast Builder Telemetry Contract**: Keep `execution/verification_report.json` (queue depth, guard success rate, request/sec, approval latency) and `execution/next_task_context.json` (intent, complexity, sample diff, telemetry anchors, approvals, agent_model) in sync so the TUI and downstream agents always see the same audited metadata.
+- **Skill Distribution**: Bundle the `skills/cast-builder` manifest, `scripts/cast_builder.sh`, and the assignment metadata contract (intent, complexity, sample diff snippet, telemetry anchors, approvals, agent_model) into an exportable artifact so other workspaces can rehydrate the same deterministic harness.
 - **Human-Centric Design**: Prioritize user experience and human values in the design and deployment 
   of AI systems.
 - **Scenario Planning**: Engage in scenario planning to anticipate future challenges and

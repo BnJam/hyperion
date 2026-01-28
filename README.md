@@ -63,6 +63,15 @@ The same telemetry payload (throughput/latency, guard success rate, agent reques
 The Ratatui dashboard now includes a Cast Builder Status panel (below the file events) that highlights the most recent exported request ID, intent, complexity, and approvals so you can confirm the cast builder REPL aligned with the orchestrator’s expectations before Copilot agents consume it.
 The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidance, and the last 100 task requests, plus a Worker Logs panel that reads structured JSON events from SQLite so you can trace dequeue/validation/apply activity without flooding the terminal output (console logging remains suppressed unless `HYPERION_LOG=1`). The new Metrics panel mirrors the `[progress]` lines printed by `hyperion run`/`worker` so you can see throughput, latency, and lease contention without leaving the console.
 
+## Cast Builder Telemetry Contract
+- `execution/verification_report.json` records aggregate queue telemetry (queue depth, throughput, latency, dedup hits, WAL checkpoint stats) plus agent telemetry (requests/sec, guard success rate, approval latency) so dashboards can correlate guard outcomes with the cast builder lifecycle even when the CLI is not running.
+- `execution/next_task_context.json` surfaces the latest assignment metadata (intent, complexity rating 1–10, sample diff, telemetry anchors, approvals, agent_model) and exported skill status so the Cast Builder Status panel and downstream Copilot agents have deterministic context before a cast is enqueued.
+- The Metrics panel in the TUI reads from `verification_report.json` while the Cast Builder Status pane reads `next_task_context.json`, creating a transparent contract between telemetry exports and the human-reviewed cast that just got packaged for Copilot.
+
+## Cast Builder Export Bundle
+- Reuse the `skills/cast-builder` manifest plus `scripts/cast_builder.sh` so exported skills follow the same REPL, metadata, and approval flow.
+- Create a portable bundle with `tar -czf /tmp/cast-builder.tar.gz scripts/cast_builder.sh skills/cast-builder`, record `sha256sum /tmp/cast-builder.tar.gz`, and include a short README that reiterates the assignment metadata expectations (intent, complexity, sample diff, telemetry anchors, approvals, agent_model) so other teams can mirror the same deterministic workflow.
+
 ## Example JSON Change Request (Sketch)
 ```json
 {
@@ -92,6 +101,7 @@ The TUI now shows a multi-pane view with queue stats, runtime telemetry, guidanc
 - Exercise the agent harness (`cargo run -- agent \"Summarize this task\"`).
 - Build a cast with `cargo run -- cast` (or `scripts/cast_builder.sh`) and inspect `taskjson/` plus the Cast Builder panel afterwards.
 - Use the `skills/cast-builder` manifest as a template when exporting this workflow to other operators.
++ Package the cast-builder skill into an export bundle (`tar -czf /tmp/cast-builder.tar.gz scripts/cast_builder.sh skills/cast-builder`) and publish the checksum (`sha256sum /tmp/cast-builder.tar.gz`) so downstream teams can reuse the same REPL-to-Copilot loop.
 
 ## Contributing
 Contributions should align with the orchestration model and keep tasks scoped, isolated, and testable. For design changes, include a rationale and validation steps.

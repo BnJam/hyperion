@@ -15,3 +15,5 @@
 - Keep the CLI/TUI explicit: no hidden automation, just gating, telemetry, and human approvals borrowed from the two reference systems.
 - Capture the agent harness metadata expectations (intent, complexity, sample diffs, telemetry anchors, agent_model) so the cast protocol remains deterministic and traceable from ingestion to apply.
 - Surface the agent telemetry exports (requests/sec, guard success rate, approval latency) and note that `execution/verification_report.json` mirrors the TUI metrics for unattended dashboards.
+- Surface the Cast Builder telemetry contract between `execution/verification_report.json` (queue + agent metrics) and `execution/next_task_context.json` (assignment metadata + export status) so actors know which files power the new TUI panels.
+- Package the `skills/cast-builder` manifest plus `scripts/cast_builder.sh` into a distributable bundle (e.g., `/tmp/cast-builder.tar.gz` with a checksum) and describe that process in the docs so downstream workspaces can replay the same REPL-to-Copilot flow without missing assets.
