@@ -92,8 +92,6 @@ impl SqliteQueue {
              CREATE INDEX IF NOT EXISTS idx_change_queue_status ON change_queue(status);
              CREATE INDEX IF NOT EXISTS idx_change_queue_status_lease_id ON change_queue(status, leased_until, id);
              CREATE INDEX IF NOT EXISTS idx_change_queue_lease ON change_queue(leased_until);
-             CREATE UNIQUE INDEX IF NOT EXISTS idx_change_queue_task_payload_hash ON change_queue(task_id, payload_hash);
-             CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);
              CREATE INDEX IF NOT EXISTS idx_change_queue_logs_queue_id ON change_queue_logs(queue_id);
              CREATE INDEX IF NOT EXISTS idx_agent_sessions_last_used ON agent_sessions(last_used);
              CREATE INDEX IF NOT EXISTS idx_file_modifications_created_at ON file_modifications(created_at);",
@@ -106,6 +104,11 @@ impl SqliteQueue {
         )?;
         Self::try_add_column(&conn, "task_id TEXT")?;
         Self::try_add_column(&conn, "payload_hash TEXT")?;
+        conn.execute_batch(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_change_queue_task_payload_hash ON change_queue(task_id, payload_hash);
+             CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);",
+        )
+        .context("create dedupe indexes")?;
         Ok(())
     }
 

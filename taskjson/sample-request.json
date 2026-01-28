@@ -1,0 +1,22 @@
+{
+  "request_id": "REQ-9001",
+  "summary": "Clarify the approvals sentence in the README",
+  "requested_changes": [
+    {
+      "path": "README.md",
+      "summary": "Note that humans approve each cast"
+    }
+  ],
+  "assignments": [
+    {
+      "task_id": "REQ-9001-1",
+      "parent_request_id": "REQ-9001",
+      "summary": "Clarify approval wording",
+      "file_targets": ["README.md"],
+      "instructions": [
+        "Only edit README.md as shown in the schema snippet.",
+        "Provide the resulting change request JSON (no extra prose)."
+      ]
+    }
+  ]
+}

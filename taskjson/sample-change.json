@@ -1,0 +1,16 @@
+{
+  "task_id": "REQ-9001-1",
+  "agent": "developer-demo",
+  "changes": [
+    {
+      "path": "README.md",
+      "operation": "update",
+      "patch": "--- a/README.md\n+++ b/README.md\n@@\n-1. **Human** submits task requests and provides approvals.\n+1. **Human** submits task requests and approves each cast.\n",
+      "patch_hash": "0b527e33330f8bdf284cb65ad9f79f5c5564fb6a6d08189a84266525813e0082"
+    }
+  ],
+  "checks": [
+    "cargo fmt --check",
+    "cargo clippy --workspace --all-targets --all-features"
+  ]
+}
