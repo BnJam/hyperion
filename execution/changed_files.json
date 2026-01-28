@@ -2,10 +2,13 @@
   "clean": false,
   "dirty": true,
   "files": [
-    "HYPERION.md",
-    "README.md",
-    "references/ASI_FRAMEWORK.md",
-    "references/QUESTIONS.md",
-    "skills/cast-builder/SKILL.md"
+    "assets/templates/EXPORT_GUIDE.template.md",
+    "execution/changed_files.json",
+    "execution/discovery_log.md",
+    "execution/git_status.txt",
+    "execution/librarian_discovery.md",
+    "execution/task_status_summary.json",
+    "execution/tasks.json",
+    "README.md"
   ]
 }
