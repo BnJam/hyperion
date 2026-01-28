@@ -6,10 +6,6 @@
     "execution/discovery_log.md",
     "execution/git_status.txt",
     "execution/librarian_discovery.md",
-    "execution/phase_progress.json",
-    "execution/task_status_summary.json",
-    "execution/tasks.json",
-    "plans/phase_plan.json",
-    "WORKPLAN.md"
+    "execution/phase_progress.json"
   ]
 }
