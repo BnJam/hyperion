@@ -191,3 +191,11 @@
 - Librarian skill referenced to keep discovery token-efficient.
 - Discovery note references grepit/grape search habits for following the guard.
 - Discovery note references code-optimizer inspired extraction to keep context narrow.
+
+### Librarian registry
+- No registry file; default catalog: /Users/bsmith/bnjam/hyperion/librarian.db
+- Audit logs: /Users/bsmith/bnjam/hyperion/execution/index.log, /Users/bsmith/bnjam/hyperion/execution/verify.log, /Users/bsmith/bnjam/hyperion/execution/purge.log
+
+### Librarian registry
+- No registry file; default catalog: /Users/bsmith/bnjam/hyperion/librarian.db
+- Audit logs: /Users/bsmith/bnjam/hyperion/execution/index.log, /Users/bsmith/bnjam/hyperion/execution/verify.log, /Users/bsmith/bnjam/hyperion/execution/purge.log

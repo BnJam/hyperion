@@ -2,11 +2,10 @@
   "clean": false,
   "dirty": true,
   "files": [
-    "execution/changed_files.json",
-    "execution/git_status.txt",
-    "execution/phase_progress.json",
+    "execution/discovery_log.md",
+    "execution/plan_discovery_report.json",
+    "execution/plan_validation_report.json",
     "execution/task_status_summary.json",
-    "execution/tasks.json",
-    "WORKPLAN.md"
+    "execution/tasks.json"
   ]
 }
