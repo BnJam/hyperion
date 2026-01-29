@@ -24,28 +24,7 @@ pub fn export_skill(target: &Path, overwrite: bool) -> Result<()> {
     // Copy skills and templates into the target bundle
     copy_dir(Path::new("skills"), &target.join("skills"))?;
 
-    // Also look for a sibling workspace-level 'agentskills' directory (../agentskills) and copy its skill subdirs
-    if let Ok(cwd) = env::current_dir() {
-        if let Some(parent) = cwd.parent() {
-            let external = parent.join("agentskills");
-            if external.exists() && external.is_dir() {
-                for entry in fs::read_dir(&external).with_context(|| format!("read {}", external.display()))? {
-                    let entry = entry?;
-                    let path = entry.path();
-                    if path.is_dir() {
-                        let dest = target.join("skills").join(entry.file_name());
-                        copy_dir(&path, &dest)?;
-                    } else if path.is_file() {
-                        // If top-level files (e.g., a SKILL.md directly under agentskills), copy them into target/skills
-                        let dest_file = target.join("skills").join(entry.file_name());
-                        fs::create_dir_all(target.join("skills"))?;
-                        fs::copy(&path, &dest_file)
-                            .with_context(|| format!("copy {} to {} failed", path.display(), dest_file.display()))?;
-                    }
-                }
-            }
-        }
-    }
+    // Do not copy external agentskills; prompts should be curated from examples only.
 
     // Copy templates if available in repo; otherwise ensure target assets/templates exists (handled later)
     copy_dir(
