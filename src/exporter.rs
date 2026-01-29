@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs,
     io::{self, Write},
     path::Path,
@@ -22,6 +23,31 @@ pub fn export_skill(target: &Path, overwrite: bool) -> Result<()> {
 
     // Copy skills and templates into the target bundle
     copy_dir(Path::new("skills"), &target.join("skills"))?;
+
+    // Also look for a sibling workspace-level 'agentskills' directory (../agentskills) and copy its skill subdirs
+    if let Ok(cwd) = env::current_dir() {
+        if let Some(parent) = cwd.parent() {
+            let external = parent.join("agentskills");
+            if external.exists() && external.is_dir() {
+                for entry in fs::read_dir(&external).with_context(|| format!("read {}", external.display()))? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        let dest = target.join("skills").join(entry.file_name());
+                        copy_dir(&path, &dest)?;
+                    } else if path.is_file() {
+                        // If top-level files (e.g., a SKILL.md directly under agentskills), copy them into target/skills
+                        let dest_file = target.join("skills").join(entry.file_name());
+                        fs::create_dir_all(target.join("skills"))?;
+                        fs::copy(&path, &dest_file)
+                            .with_context(|| format!("copy {} to {} failed", path.display(), dest_file.display()))?;
+                    }
+                }
+            }
+        }
+    }
+
+    // Copy templates if available in repo; otherwise ensure target assets/templates exists (handled later)
     copy_dir(
         Path::new("assets/templates"),
         &target.join("assets/templates"),
@@ -80,8 +106,9 @@ fn generate_skill_prompts(skills_dir: &Path, target: &Path) -> Result<()> {
         if file_name.starts_with('.') {
             continue;
         }
-        // Use directory name or file stem as the skill identifier
-        let skill_name = if entry.path().is_file() {
+
+        let path = entry.path();
+        let skill_name = if path.is_file() {
             match Path::new(&file_name).file_stem().and_then(|s| s.to_str()) {
                 Some(stem) => stem.to_string(),
                 None => file_name.clone(),
@@ -91,7 +118,20 @@ fn generate_skill_prompts(skills_dir: &Path, target: &Path) -> Result<()> {
         };
 
         let prompt_path = target.join(format!("{}.prompt.md", skill_name));
-        let content = render_skill_prompt(&skill_name, skills_dir)?;
+
+        // If the skill is a directory and contains SKILL.md, use its contents as the prompt body
+        let content = if path.is_dir() {
+            let skill_md = path.join("SKILL.md");
+            if skill_md.exists() {
+                let md = fs::read_to_string(&skill_md).unwrap_or_default();
+                format!("# {skill_name} skill prompt\n\n{md}\n\nCLI examples\n- hyperion agent --model gpt-5-mini \"{skill_name}: <describe the task>\"\n- hyperion request path/to/request.json --model gpt-5-mini --agents 1\n- hyperion orchestrate path/to/request.json\n- hyperion worker --worker-id {skill_name}-worker\n- hyperion run\n- hyperion apply path/to/changes.json\n\nInspect the skill implementation in skills/{skill_name} for more details.\n", skill_name=skill_name)
+            } else {
+                render_skill_prompt(&skill_name, skills_dir)?
+            }
+        } else {
+            render_skill_prompt(&skill_name, skills_dir)?
+        };
+
         fs::write(&prompt_path, content)
             .with_context(|| format!("write {}", prompt_path.display()))?;
     }
