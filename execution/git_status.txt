@@ -1,8 +1,6 @@
- M README.md
- M assets/templates/EXPORT_GUIDE.template.md
+ M WORKPLAN.md
  M execution/changed_files.json
- M execution/discovery_log.md
  M execution/git_status.txt
- M execution/librarian_discovery.md
+ M execution/phase_progress.json
  M execution/task_status_summary.json
  M execution/tasks.json

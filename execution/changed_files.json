@@ -2,13 +2,11 @@
   "clean": false,
   "dirty": true,
   "files": [
-    "assets/templates/EXPORT_GUIDE.template.md",
     "execution/changed_files.json",
-    "execution/discovery_log.md",
     "execution/git_status.txt",
-    "execution/librarian_discovery.md",
+    "execution/phase_progress.json",
     "execution/task_status_summary.json",
     "execution/tasks.json",
-    "README.md"
+    "WORKPLAN.md"
   ]
 }
