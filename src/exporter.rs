@@ -1,5 +1,4 @@
 use std::{
-    env,
     fs,
     io::{self, Write},
     path::Path,
