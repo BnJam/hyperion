@@ -27,10 +27,34 @@ pub fn export_skill(target: &Path, overwrite: bool) -> Result<()> {
         &target.join("assets/templates"),
     )?;
 
-    // Render and write the export guide
-    let template_path = Path::new("assets/templates").join("EXPORT_GUIDE.template.md");
-    let template = fs::read_to_string(&template_path)
-        .context("read export guide template from assets/templates")?;
+    // Render and write the export guide. If repo assets/templates missing, generate a default template into the target bundle.
+    let source_template = Path::new("assets/templates").join("EXPORT_GUIDE.template.md");
+    let template = if source_template.exists() {
+        fs::read_to_string(&source_template)
+            .context("read export guide template from assets/templates")?
+    } else {
+        // Create target assets/templates directory and write a default template there.
+        let target_templates_dir = target.join("assets/templates");
+        fs::create_dir_all(&target_templates_dir)
+            .with_context(|| format!("create {}", target_templates_dir.display()))?;
+        let default_template = r#"## Export Guide
+
+Exported bundle path: {{target_path}}
+
+Language: {{language}}
+
+Git Status:
+{{git_status}}
+
+# Using the bundle
+
+The 'skills/' directory contains skill implementations. Run 'hyperion run' or other CLI commands to operate.
+"#;
+        let target_template_path = target_templates_dir.join("EXPORT_GUIDE.template.md");
+        fs::write(&target_template_path, default_template)
+            .with_context(|| format!("write {}", target_template_path.display()))?;
+        default_template.to_string()
+    };
     let guide = render_export_guide(&template, &target)?;
     let guide_path = target.join("EXPORT_GUIDE.md");
     fs::write(&guide_path, guide).with_context(|| format!("write {}", guide_path.display()))?;
