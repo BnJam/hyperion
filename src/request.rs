@@ -170,17 +170,40 @@ fn run_assignment(
             if let Ok(mut request) = serde_json::from_str::<ChangeRequest>(&response) {
                 request.task_id = assignment.task_id.clone();
                 request.agent = agent_name.to_string();
+                // ensure the produced ChangeRequest records the originating phase and blocking flag
                 request.metadata = merge_assignment_metadata(
                     request.metadata,
                     &assignment.metadata,
                     &effective_model,
                 );
-                for change in request.changes.iter_mut() {
-                    if change.patch_hash.is_none() {
-                        change.patch_hash = Some(compute_patch_hash(&change.patch));
-                    }
+                // embed the phase_id and blocking flag in metadata for queue extraction
+                // (metadata already has space for sample_diff / intent etc.)
+                if request.metadata.sample_diff.is_none() {
+                    request.metadata.sample_diff = assignment.metadata.sample_diff.clone();
                 }
-                return Ok(request);
+                // attach phase and blocking flag as additional top-level fields as well
+                // so the queue can extract phase_id easily
+                let mut payload_val: serde_json::Value = serde_json::from_str(&response).unwrap_or_else(|_| serde_json::json!({}));
+                if let serde_json::Value::Object(ref mut map) = payload_val {
+                    map.insert("phase_id".to_string(), serde_json::Value::String(assignment.phase_id.clone().unwrap_or_default()));
+                    map.insert("blocking_on_failure".to_string(), serde_json::Value::Bool(assignment.blocking_on_failure));
+                }
+                let patched = serde_json::to_string(&payload_val).unwrap_or(response.clone());
+                if let Ok(mut request) = serde_json::from_str::<ChangeRequest>(&patched) {
+                    request.task_id = assignment.task_id.clone();
+                    request.agent = agent_name.to_string();
+                    request.metadata = merge_assignment_metadata(
+                        request.metadata,
+                        &assignment.metadata,
+                        &effective_model,
+                    );
+                    for change in request.changes.iter_mut() {
+                        if change.patch_hash.is_none() {
+                            change.patch_hash = Some(compute_patch_hash(&change.patch));
+                        }
+                    }
+                    return Ok(request);
+                }
             } else {
                 eprintln!("failed to parse agent response");
             }

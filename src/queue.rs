@@ -43,6 +43,7 @@ impl SqliteQueue {
                 payload TEXT NOT NULL,
                 task_id TEXT,
                 payload_hash TEXT,
+                phase_id TEXT,
                 attempts INTEGER NOT NULL DEFAULT 0,
                 last_error TEXT,
                 leased_until INTEGER,
@@ -104,9 +105,11 @@ impl SqliteQueue {
         )?;
         Self::try_add_column(&conn, "task_id TEXT")?;
         Self::try_add_column(&conn, "payload_hash TEXT")?;
+        Self::try_add_column(&conn, "phase_id TEXT")?;
         conn.execute_batch(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_change_queue_task_payload_hash ON change_queue(task_id, payload_hash);
-             CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);",
+             CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);
+             CREATE INDEX IF NOT EXISTS idx_change_queue_phase_id ON change_queue(phase_id);"",
         )
         .context("create dedupe indexes")?;
         Ok(())
@@ -180,13 +183,21 @@ impl SqliteQueue {
                 payload_hash
             );
         }
+        // try to extract phase_id from the ChangeRequest payload JSON
+        let phase_id: Option<String> = serde_json::from_str::<serde_json::Value>(&payload)
+            .ok()
+            .and_then(|v| v.get("metadata")
+                .and_then(|m| m.get("phase_id"))
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string()) );
         conn.execute(
-            "INSERT INTO change_queue (status, payload, task_id, payload_hash, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO change_queue (status, payload, task_id, payload_hash, phase_id, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 QueueStatus::Pending.as_str(),
                 payload,
                 request.task_id,
                 payload_hash,
+                phase_id,
                 now_epoch()?
             ],
         )?;
