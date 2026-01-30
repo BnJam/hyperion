@@ -2,10 +2,17 @@
   "clean": false,
   "dirty": true,
   "files": [
+    "assets/templates/EXPORT_GUIDE.template.md",
+    "execution/changed_files.json",
+    "execution/checkws_run_log.txt",
+    "execution/developer_onboard_log.txt",
+    "execution/discover_run_log.txt",
     "execution/discovery_log.md",
-    "execution/plan_discovery_report.json",
-    "execution/plan_validation_report.json",
+    "execution/extract_run_log.txt",
+    "execution/git_status.txt",
     "execution/task_status_summary.json",
-    "execution/tasks.json"
+    "execution/tasks.json",
+    "execution/validate_run_log.txt",
+    "EXPORT_GUIDE.md"
   ]
 }

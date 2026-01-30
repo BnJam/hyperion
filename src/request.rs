@@ -176,6 +176,9 @@ fn run_assignment(
                     &assignment.metadata,
                     &effective_model,
                 );
+                // ensure phase info is present in metadata for queue extraction
+                request.metadata.phase_id = assignment.phase_id.clone();
+                request.metadata.blocking_on_failure = Some(assignment.blocking_on_failure);
                 // embed the phase_id and blocking flag in metadata for queue extraction
                 // (metadata already has space for sample_diff / intent etc.)
                 if request.metadata.sample_diff.is_none() {
@@ -197,6 +200,9 @@ fn run_assignment(
                         &assignment.metadata,
                         &effective_model,
                     );
+                    // ensure phase info is present in metadata for queue extraction
+                    request.metadata.phase_id = assignment.phase_id.clone();
+                    request.metadata.blocking_on_failure = Some(assignment.blocking_on_failure);
                     for change in request.changes.iter_mut() {
                         if change.patch_hash.is_none() {
                             change.patch_hash = Some(compute_patch_hash(&change.patch));
@@ -226,6 +232,9 @@ fn fallback_request(
         metadata: {
             let mut metadata = assignment.metadata.clone();
             metadata.agent_model = Some(model_name.to_string());
+            // ensure phase info propagates into metadata for queue
+            metadata.phase_id = assignment.phase_id.clone();
+            metadata.blocking_on_failure = Some(assignment.blocking_on_failure);
             metadata
         },
         changes: vec![change],
@@ -291,6 +300,8 @@ fn build_change_operation(
     if let Some(pos) = patch_body.find("@@") {
         patch_body = patch_body[pos..].to_string();
     }
+    // decide operation kind: Add if file didn't exist, Update otherwise
+    let operation = if base_content.is_empty() { OperationKind::Add } else { OperationKind::Update };
     let patch = format!(
         "diff --git a/{path} b/{path}\n\
 index 0000000..0000000 100644\n\
@@ -304,7 +315,7 @@ index 0000000..0000000 100644\n\
 
     ChangeOperation {
         path: path.to_string(),
-        operation: OperationKind::Update,
+        operation,
         patch,
         patch_hash: Some(patch_hash),
     }

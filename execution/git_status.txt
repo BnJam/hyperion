@@ -1,5 +1,12 @@
+ M EXPORT_GUIDE.md
+ D assets/templates/EXPORT_GUIDE.template.md
+ M execution/changed_files.json
  M execution/discovery_log.md
- M execution/plan_discovery_report.json
- M execution/plan_validation_report.json
+ M execution/git_status.txt
  M execution/task_status_summary.json
  M execution/tasks.json
+?? execution/checkws_run_log.txt
+?? execution/developer_onboard_log.txt
+?? execution/discover_run_log.txt
+?? execution/extract_run_log.txt
+?? execution/validate_run_log.txt

@@ -199,3 +199,12 @@
 ### Librarian registry
 - No registry file; default catalog: /Users/bsmith/bnjam/hyperion/librarian.db
 - Audit logs: /Users/bsmith/bnjam/hyperion/execution/index.log, /Users/bsmith/bnjam/hyperion/execution/verify.log, /Users/bsmith/bnjam/hyperion/execution/purge.log
+Librarian workspace discovery logged 2026-01-29T23:36:31Z at workspace_discovery.txt for db /Users/bsmith/bnjam/hyperion/librarian.db
+
+### Librarian registry
+- No registry file; default catalog: /Users/bsmith/bnjam/hyperion/librarian.db
+- Audit logs: /Users/bsmith/bnjam/hyperion/execution/index.log, /Users/bsmith/bnjam/hyperion/execution/verify.log, /Users/bsmith/bnjam/hyperion/execution/purge.log
+
+### Librarian registry
+- No registry file; default catalog: /Users/bsmith/bnjam/hyperion/librarian.db
+- Audit logs: /Users/bsmith/bnjam/hyperion/execution/index.log, /Users/bsmith/bnjam/hyperion/execution/verify.log, /Users/bsmith/bnjam/hyperion/execution/purge.log

@@ -25,6 +25,8 @@ fn build_assignment(
         ],
         approvals: Vec::new(),
         agent_model: None,
+        phase_id: change.phase_id.clone(),
+        blocking_on_failure: change.blocking_on_failure,
     };
 
     TaskAssignment {

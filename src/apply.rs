@@ -76,8 +76,36 @@ pub fn apply_change_request(request: &ChangeRequest) -> anyhow::Result<()> {
 }
 
 fn apply_change_operation(change: ChangeOperation) -> anyhow::Result<()> {
-    run_git_apply_check(&change)?;
+    // try git apply --check first; if it fails, attempt a couple of recoveries:
+    //  - create parent directories when stderr indicates missing dirs and retry
+    //  - fall back to applying the patch using the current filesystem contents via diffy
     let target = Path::new(&change.path);
+
+    if let Err(err) = run_git_apply_check(&change) {
+        // inspect error for missing file/dir and retry after creating parent dir
+        let mut retried = false;
+        if let Some(af) = err.downcast_ref::<ApplyFailure>() {
+            let stderr = af.stderr.to_string();
+            if stderr.contains("No such file or directory") {
+                if let Some(parent) = target.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                if run_git_apply_check(&change).is_ok() {
+                    retried = true;
+                }
+            }
+        }
+        if !retried {
+            // fallback: attempt to apply the patch against the current file contents using diffy
+            let existing = fs::read_to_string(target).unwrap_or_default();
+            if apply_patch_contents(&existing, &change.patch).is_err() {
+                // original git check failure is authoritative
+                return Err(err);
+            }
+            // else we can proceed to write the applied contents below
+        }
+    }
+
     info!(
         path = %change.path,
         operation = ?change.operation,

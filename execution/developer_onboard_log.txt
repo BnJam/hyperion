@@ -1,0 +1,43 @@
+Selected bash: /opt/homebrew/bin/bash
+=== discover-plan.sh ===
+./scripts/discover-plan.sh: line 259: entries_json: unbound variable
+discover-plan.sh failed (exit 1)
+Selected plan: /Users/bsmith/bnjam/hyperion/WORKPLAN.md
+=== validate-plan.sh ===
+./scripts/validate-plan.sh: line 138: syntax error near unexpected token `('
+validate-plan.sh failed (exit 2)
+=== extract-tasks.sh ===
+=== check-workspace.sh ===
+WARN: workspace is dirty
+Running bassethound anti-pattern scan...
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 138 files tracked by git with 17 Code rules:
+  Nothing to scan.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 17
+ • Targets scanned: 0
+ • Parsed lines: an unknown percentage
+ • No ignore information available
+Ran 17 rules on 0 files: 0 findings.
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+{"version":"1.146.0","results":[],"errors":[],"paths":{"scanned":[]},"time":{"rules":[],"rules_parse_time":0.006006002426147461,"profiling_times":{"config_time":0.33837294578552246,"core_time":0.22031807899475098,"ignores_time":5.888938903808594e-05,"total_time":0.5638058185577393},"fixpoint_timeouts":[],"targets":[],"total_bytes":0,"max_memory_bytes":94205056},"engine_requested":"OSS","skipped_rules":[],"profiling_results":[]}
+Semgrep clean (/Users/bsmith/.copilot/skills/developer/execution/log.txt)
+No anti-patterns detected.
+=== librarian-discovery.sh ===
+ERROR: Database not found at /Users/bsmith/bnjam/hyperion/librarian.db
+librarian-discovery.sh failed (exit 1)
+=== check-discovery.sh ===
+Onboarding scripts completed. Check /Users/bsmith/bnjam/hyperion/execution/ for artifacts and developer_onboard_log.txt for details.

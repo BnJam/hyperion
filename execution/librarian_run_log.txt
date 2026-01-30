@@ -1,0 +1,1 @@
+ERROR: Database not found at /Users/bsmith/bnjam/hyperion/librarian.db

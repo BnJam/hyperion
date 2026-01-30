@@ -1,0 +1,2 @@
+WARN: librarian discovery script not found at ../librarian/scripts/workspace-discovery.sh
+/Users/bsmith/.copilot/skills/developer/scripts/discover-plan.sh: line 259: entries_json: unbound variable

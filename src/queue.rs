@@ -109,7 +109,7 @@ impl SqliteQueue {
         conn.execute_batch(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_change_queue_task_payload_hash ON change_queue(task_id, payload_hash);
              CREATE INDEX IF NOT EXISTS idx_change_queue_payload_hash ON change_queue(payload_hash);
-             CREATE INDEX IF NOT EXISTS idx_change_queue_phase_id ON change_queue(phase_id);"",
+             CREATE INDEX IF NOT EXISTS idx_change_queue_phase_id ON change_queue(phase_id);",
         )
         .context("create dedupe indexes")?;
         Ok(())
@@ -183,13 +183,23 @@ impl SqliteQueue {
                 payload_hash
             );
         }
-        // try to extract phase_id from the ChangeRequest payload JSON
+        // try to extract phase_id from the ChangeRequest payload JSON (support metadata.phase_id or top-level phase_id)
         let phase_id: Option<String> = serde_json::from_str::<serde_json::Value>(&payload)
             .ok()
-            .and_then(|v| v.get("metadata")
-                .and_then(|m| m.get("phase_id"))
-                .and_then(|p| p.as_str())
-                .map(|s| s.to_string()) );
+            .and_then(|v| {
+                // prefer metadata.phase_id
+                if let Some(meta) = v.get("metadata") {
+                    if let Some(p) = meta.get("phase_id") {
+                        if let Some(s) = p.as_str() {
+                            return Some(s.to_string());
+                        }
+                    }
+                }
+                // fallback to top-level phase_id
+                v.get("phase_id")
+                    .and_then(|p| p.as_str())
+                    .map(|s| s.to_string())
+            });
         conn.execute(
             "INSERT INTO change_queue (status, payload, task_id, payload_hash, phase_id, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![

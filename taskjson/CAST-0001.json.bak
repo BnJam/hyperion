@@ -1,0 +1,72 @@
+{
+  "request_id": "CAST-0001",
+  "summary": "Add phased sample tasks for testing phase barrier",
+  "metadata": {
+    "intent": "Demonstrate phased casts",
+    "complexity": 3,
+    "agent_model": "gpt-5-mini",
+    "telemetry_anchors": [
+      "cast:CAST-0001"
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Prepare",
+      "ordinal": 1,
+      "failure_policy": "block"
+    },
+    {
+      "id": "phase-2",
+      "name": "Apply",
+      "ordinal": 2,
+      "failure_policy": "block"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "CAST-0001-1",
+      "phase_id": "phase-1",
+      "summary": "Update README approval sentence",
+      "file_targets": [
+        "README.md"
+      ],
+      "patch": "@@ -97,7 +97,7 @@\n- Approved: yes\n+ Approved: yes",
+      "blocking_on_failure": true,
+      "patch_hash": "fcd6a5bf8e3b93481da0f350b6a490b06e40976401ca5d9e0e77d003fd2095c0"
+    },
+    {
+      "task_id": "CAST-0001-2",
+      "phase_id": "phase-1",
+      "summary": "Add example to EXPORT_GUIDE",
+      "file_targets": [
+        "EXPORT_GUIDE.md"
+      ],
+      "patch": "@@ -1,3 +1,6 @@\n+ Example: exported cast with phases",
+      "blocking_on_failure": false,
+      "patch_hash": "14d23612498939ba93c3f832e49771da2b26b97eae28e8fc84c4ba8115acafb5"
+    },
+    {
+      "task_id": "CAST-0001-3",
+      "phase_id": "phase-2",
+      "summary": "Implement simple helper in scripts",
+      "file_targets": [
+        "scripts/helper.sh"
+      ],
+      "patch": "@@ -0,0 +1,10 @@\n+#!/usr/bin/env bash\n+echo helper",
+      "blocking_on_failure": true,
+      "patch_hash": "6c242046a6c518f274669f1559d40e9d3f0b47d64426665cfc45179f898f9b76"
+    },
+    {
+      "task_id": "CAST-0001-4",
+      "phase_id": "phase-2",
+      "summary": "Add tests for phase gating",
+      "file_targets": [
+        "tests/phase_gating.rs"
+      ],
+      "patch": "@@ -0,0 +1,40 @@\n+// test scaffold",
+      "blocking_on_failure": true,
+      "patch_hash": "2ee9756f8bf4ea5c51d16cffee9045fe0f673bbcd5b34e02fbc7c6e6c5f71c07"
+    }
+  ]
+}

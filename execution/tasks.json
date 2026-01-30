@@ -1,10 +1,4 @@
 {
   "tasks": [
-    {"id": "T001", "description": "T001: Update the README/SKILL references, command checklist, and reference docs to describe the generator + progress flow.", "status": "pending"},
-    {"id": "T002", "description": "T002: Capture the deterministic surface and open questions in the new references/ASI_FRAMEWORK.md plus references/QUESTIONS.md entries.", "status": "pending"},
-    {"id": "T003", "description": "T003: Create scripts/generate_plan.py and scripts/update_phase_progress.py to keep phases/tasks structured and track status.", "status": "pending"},
-    {"id": "T004", "description": "T004: Ensure WORKPLAN.md is regenerated from the definition whenever the definition changes.", "status": "pending"},
-    {"id": "T005", "description": "T005: Add scripts/workplan-helper.sh and update execute-plan.sh so the developer skill always queries workplan for the next task.", "status": "pending"},
-    {"id": "T006", "description": "T006: Document how developer reads execution/next_task_context.json and phase_progress before resuming work.", "status": "pending"}
   ]
 }

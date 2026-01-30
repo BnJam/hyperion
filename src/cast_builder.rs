@@ -45,7 +45,7 @@ pub fn run_cast_builder(out: Option<PathBuf>) -> Result<()> {
         println!("--- Requested Change #{index} ---");
         let path = prompt("Path (relative to repo root): ")?;
         let summary = prompt("Change summary: ")?;
-        requested_changes.push(RequestedChange { path, summary });
+        requested_changes.push(RequestedChange { path, summary, phase_id: None, blocking_on_failure: None, ensure_exists: None });
     }
 
     let instructions = prompt_instructions()?;
@@ -65,7 +65,11 @@ pub fn run_cast_builder(out: Option<PathBuf>) -> Result<()> {
                 telemetry_anchors: telemetry_anchors.clone(),
                 approvals: approvals.clone(),
                 agent_model: Some("gpt-5-mini".to_string()),
+                phase_id: None,
+                blocking_on_failure: None,
             },
+            phase_id: change.phase_id.clone(),
+            blocking_on_failure: change.blocking_on_failure.unwrap_or(true),
         })
         .collect();
 

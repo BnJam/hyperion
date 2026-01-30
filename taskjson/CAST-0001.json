@@ -1,0 +1,47 @@
+{
+  "request_id": "CAST-0001",
+  "summary": "Add phased sample tasks for testing phase barrier",
+  "requested_changes": [
+    {
+      "path": "README.md",
+      "summary": "Update README approval sentence",
+      "phase_id": "phase-1",
+      "blocking_on_failure": true,
+      "ensure_exists": true
+    },
+    {
+      "path": "EXPORT_GUIDE.md",
+      "summary": "Add example to EXPORT_GUIDE",
+      "phase_id": "phase-1",
+      "blocking_on_failure": false
+    },
+    {
+      "path": "scripts/helper.sh",
+      "summary": "Implement simple helper in scripts",
+      "phase_id": "phase-2",
+      "blocking_on_failure": true,
+      "ensure_exists": true
+    },
+    {
+      "path": "tests/phase_gating.rs",
+      "summary": "Add tests for phase gating",
+      "phase_id": "phase-2",
+      "blocking_on_failure": true,
+      "ensure_exists": true
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Prepare",
+      "ordinal": 1,
+      "failure_policy": "block"
+    },
+    {
+      "id": "phase-2",
+      "name": "Apply",
+      "ordinal": 2,
+      "failure_policy": "block"
+    }
+  ]
+}

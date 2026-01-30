@@ -29,6 +29,8 @@ pub struct RequestedChange {
     pub phase_id: Option<String>,
     #[serde(default)]
     pub blocking_on_failure: Option<bool>,
+    #[serde(default)]
+    pub ensure_exists: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +56,10 @@ pub struct AssignmentMetadata {
     pub telemetry_anchors: Vec<String>,
     pub approvals: Vec<ApprovalRecord>,
     pub agent_model: Option<String>,
+    #[serde(default)]
+    pub phase_id: Option<String>,
+    #[serde(default)]
+    pub blocking_on_failure: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +82,8 @@ impl Default for AssignmentMetadata {
             telemetry_anchors: Vec::new(),
             approvals: Vec::new(),
             agent_model: None,
+            phase_id: None,
+            blocking_on_failure: None,
         }
     }
 }
