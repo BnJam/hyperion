@@ -17,12 +17,18 @@ pub struct TaskRequest {
     pub request_id: String,
     pub summary: String,
     pub requested_changes: Vec<RequestedChange>,
+    #[serde(default)]
+    pub phases: Option<Vec<PhaseSpec>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestedChange {
     pub path: String,
     pub summary: String,
+    #[serde(default)]
+    pub phase_id: Option<String>,
+    #[serde(default)]
+    pub blocking_on_failure: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +40,10 @@ pub struct TaskAssignment {
     pub instructions: Vec<String>,
     #[serde(default)]
     pub metadata: AssignmentMetadata,
+    #[serde(default)]
+    pub phase_id: Option<String>,
+    #[serde(default)]
+    pub blocking_on_failure: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +55,17 @@ pub struct AssignmentMetadata {
     pub approvals: Vec<ApprovalRecord>,
     pub agent_model: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseSpec {
+    pub id: String,
+    pub name: String,
+    pub ordinal: u32,
+    #[serde(default = "default_failure_policy")]
+    pub failure_policy: String,
+}
+
+fn default_failure_policy() -> String { "block".to_string() }
 
 impl Default for AssignmentMetadata {
     fn default() -> Self {

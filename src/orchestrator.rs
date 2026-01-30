@@ -1,6 +1,7 @@
 use crate::models::{AssignmentMetadata, RequestedChange, TaskAssignment, TaskRequest};
 
 pub fn decompose_request(request: &TaskRequest) -> Vec<TaskAssignment> {
+    // honor provided phases by assigning phase_id into each TaskAssignment when present in requested_changes
     request
         .requested_changes
         .iter()
@@ -36,6 +37,8 @@ fn build_assignment(
             "Provide a structured JSON change request on completion.".to_string(),
         ],
         metadata,
+        phase_id: change.phase_id.clone(),
+        blocking_on_failure: change.blocking_on_failure.unwrap_or(true),
     }
 }
 
